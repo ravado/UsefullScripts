@@ -1,0 +1,1 @@
+Code for lambda function to send texts from the "стоїцизм на кожен день" book for each day to the StoikVisnyk telegram bot
