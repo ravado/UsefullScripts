@@ -8,7 +8,7 @@
 
 ```bash
 sudo apt update && sudo apt install -y curl
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/homeserver/refs/heads/main/logs-and-monitoring/install_alloy.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/logs-and-monitoring/install_alloy.sh)"
 ```
 
 ## ⚠️ Важливо
