@@ -13,7 +13,7 @@ echo "Syncing all files from ${REMOTE_HOST}..."
 # --remove-source-files → moves files instead of copying.
 # --delete → makes local folder a mirror of remote (deletes files that don’t exist remotely).
 
-rsync -av --progress \
+rsync -av --progress --ignore-existing --delete \
     "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}" \
     "${LOCAL_PATH}"
 

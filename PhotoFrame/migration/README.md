@@ -24,6 +24,9 @@ It also includes automatic SMB backup integration and environment-based configur
 - *(Optional)* Synchronizes photos between two PicFrame devices using `rsync`.
 - Can be used to migrate photos between old and new setups.
 
+### `5_configure_photo_sync.sh`
+- *(Optional)* Configures the automatic sync and resize photos from remote location using `rclone`.
+
 ---
 
 ## ⚙️ Configuration
