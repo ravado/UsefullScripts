@@ -156,16 +156,16 @@ echo "✅ Backup archive created: ${BACKUP_ARCHIVE}"
 # SMB Upload and Retention
 ###########################
 if [ -f "$SMB_CRED_FILE" ]; then
-    echo "🌐 Uploading backup to SMB share $SMB_SERVER/PhotoFrames..."
-    if smbclient "$SMB_SERVER" -A "$SMB_CRED_FILE" -c "cd PhotoFrames; put $(basename "$BACKUP_ARCHIVE")"; then
+    echo "🌐 Uploading backup to SMB share $SMB_BACKUPS_PATH..."
+    if smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; put $(basename "$BACKUP_ARCHIVE")"; then
         echo "✅ Backup uploaded to SMB."
         
         echo "🗑️ Applying retention policy (keep last $MAX_BACKUPS backups)..."
-        smbclient "$SMB_SERVER" -A "$SMB_CRED_FILE" -c "cd PhotoFrames; ls" | \
+        smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; ls" | \
             awk '{print $1}' | grep '^picframe_setup_backup_.*\.tar\.gz$' | sort -r | \
             tail -n +$((MAX_BACKUPS+1)) | while read OLD_FILE; do
                 echo "🗑️ Removing old backup on SMB: $OLD_FILE"
-                smbclient "$SMB_SERVER" -A "$SMB_CRED_FILE" -c "cd PhotoFrames; del $OLD_FILE"
+                smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; del $OLD_FILE"
             done
 
         # Remove local archive after successful upload

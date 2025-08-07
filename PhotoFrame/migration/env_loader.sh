@@ -12,20 +12,27 @@ else
 fi
 
 ###########################
-# Validate required variables
+# ✅ Validate required variables
 ###########################
 
-# SMB server configuration
-: "${SMB_SERVER:?❌ SMB_SERVER is missing in $ENV_FILE}"
-: "${SMB_SUBDIR:?❌ SMB_SUBDIR is missing in $ENV_FILE}"
+# 📂 SMB Server Configuration
+: "${SMB_HOST:?❌ SMB_HOST is missing in $ENV_FILE}"
 
-# SMB credentials
+: "${SMB_BACKUPS_SHARE:?❌ SMB_BACKUPS_SHARE is missing in $ENV_FILE}"
+: "${SMB_BACKUPS_SUBDIR:?❌ SMB_BACKUPS_SUBDIR is missing in $ENV_FILE}"
+: "${SMB_BACKUPS_PATH:?❌ SMB_BACKUPS_PATH is missing in $ENV_FILE}"
+
+: "${SMB_PICFRAMES_SHARE:?❌ SMB_PICFRAMES_SHARE is missing in $ENV_FILE}"
+: "${SMB_PICFRAMES_SUBDIR:?❌ SMB_PICFRAMES_SUBDIR is missing in $ENV_FILE}"
+: "${SMB_PICFRAMES_PATH:?❌ SMB_PICFRAMES_PATH is missing in $ENV_FILE}"
+
+# 🔑 SMB Credentials
 : "${USERNAME:?❌ USERNAME is missing in $ENV_FILE}"
 : "${PASSWORD:?❌ PASSWORD is missing in $ENV_FILE}"
 : "${SMB_CRED_USER:?❌ SMB_CRED_USER is missing in $ENV_FILE}"
 : "${SMB_CRED_PASS:?❌ SMB_CRED_PASS is missing in $ENV_FILE}"
 
-# Remote sync settings
+# 🔄 Remote Sync Settings
 : "${REMOTE_USER:?❌ REMOTE_USER is missing in $ENV_FILE}"
 : "${REMOTE_HOST:?❌ REMOTE_HOST is missing in $ENV_FILE}"
 : "${REMOTE_PATH:?❌ REMOTE_PATH is missing in $ENV_FILE}"

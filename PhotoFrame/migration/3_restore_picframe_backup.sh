@@ -40,9 +40,9 @@ BACKUP_PREFIX="picframe_${PREFIX}_setup_backup_"
 # Fetch from SMB if needed
 ###########################
 if [[ "$BACKUP_INPUT" == "latest" ]]; then
-    echo "🔍 Searching SMB ($SMB_SERVER/$SMB_SUBDIR) for latest backup with prefix: $BACKUP_PREFIX"
+    echo "🔍 Searching SMB ($SMB_BACKUPS_PATH/$SMB_BACKUPS_SUBDIR) for latest backup with prefix: $BACKUP_PREFIX"
 
-    LATEST_FILE=$(smbclient "$SMB_SERVER" -A "$SMB_CRED_FILE" -c "cd $SMB_SUBDIR; ls" \
+    LATEST_FILE=$(smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; ls" \
                   | awk '{print $1}' \
                   | grep "^${BACKUP_PREFIX}" \
                   | sort -r \
@@ -65,7 +65,7 @@ fi
 ###########################
 if [ ! -f "$LOCAL_TMP/$BACKUP_NAME" ]; then
     echo "📥 Downloading $BACKUP_NAME from SMB..."
-    smbclient "$SMB_SERVER" -A "$SMB_CRED_FILE" -c "cd $SMB_SUBDIR; lcd $LOCAL_TMP; get $BACKUP_NAME"
+    smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; lcd $LOCAL_TMP; get $BACKUP_NAME"
     BACKUP_PATH="$LOCAL_TMP/$BACKUP_NAME"
 else
     BACKUP_PATH="$LOCAL_TMP/$BACKUP_NAME"
