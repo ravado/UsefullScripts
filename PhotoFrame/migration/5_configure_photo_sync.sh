@@ -63,12 +63,13 @@ Environment="RCLONE_CONFIG=$RCLONE_CONFIG"
 WantedBy=default.target
 EOF
 
-echo "✅ Systemd user service created: $SYSTEMD_SERVICE_PATH"
+echo "✅ Systemd service created: $SYSTEMD_SERVICE_PATH"
 
 # === INSTRUCT USER TO ENABLE SERVICE ===
 echo
 echo "To run it manually:"
-echo "  systemctl --user start $SYSTEMD_SERVICE_NAME"
+echo "  systemctl start $SYSTEMD_SERVICE_NAME"
 echo
-echo "To run at boot/login:"
-echo "  systemctl --user enable $SYSTEMD_SERVICE_NAME"
+echo "⚠️ Please update cron tasks manually to execute the photo-sync service"
+echo "  Example: "
+echo "  0 2 * * * /bin/systemctl start photo-sync.service"
