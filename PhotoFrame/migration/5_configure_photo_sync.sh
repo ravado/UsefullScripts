@@ -6,7 +6,7 @@ set -e
 SCRIPT_PATH="$HOME/Documents/Scripts/PhotoFrame/sync_and_resize_photos.sh"
 RCLONE_CONFIG="$HOME/.config/rclone/rclone.conf"
 SYSTEMD_SERVICE_NAME="photo-sync.service"
-SYSTEMD_SERVICE_PATH="$HOME/.config/systemd/user/$SYSTEMD_SERVICE_NAME"
+SYSTEMD_SERVICE_PATH="/etc/systemd/system/$SYSTEMD_SERVICE_NAME"
 SERVER_IP="192.168.91.198"
 SHARE_NAME="Photo-Frames"
 
@@ -37,38 +37,42 @@ cat >> "$RCLONE_CONFIG" <<EOF
 [$remote_name]
 type = smb
 server = $SERVER_IP
+host = $SERVER_IP
 share = $SHARE_NAME
 username = $username
-password = $obscured_pass
+user = $username
+pass = $obscured_pass
 EOF
 
 chmod 600 "$RCLONE_CONFIG"
 
 echo "✅ rclone config updated for [$remote_name]"
 
-# === CREATE SYSTEMD SERVICE ===
-mkdir -p "$(dirname "$SYSTEMD_SERVICE_PATH")"
-
-cat > "$SYSTEMD_SERVICE_PATH" <<EOF
+# === CREATE SYSTEMD SERVICE (SYSTEM-WIDE) ===
+echo "🛠️ Creating system-wide systemd service at $SYSTEMD_SERVICE_PATH"
+sudo tee "$SYSTEMD_SERVICE_PATH" > /dev/null <<EOF
 [Unit]
 Description=Sync and Resize Photos for $target_name
 After=network-online.target
 
 [Service]
 Type=oneshot
+User=root
 ExecStart=$SCRIPT_PATH $target_name
-Environment="RCLONE_CONFIG=$RCLONE_CONFIG"
+Environment=RCLONE_CONFIG=$RCLONE_CONFIG
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 EOF
 
 echo "✅ Systemd service created: $SYSTEMD_SERVICE_PATH"
 
-# === INSTRUCT USER TO ENABLE SERVICE ===
+# === RELOAD SYSTEMD AND SHOW INSTRUCTIONS ===
+echo "🔄 Reloading systemd..."
+sudo systemctl daemon-reload
 echo
 echo "To run it manually:"
-echo "  systemctl start $SYSTEMD_SERVICE_NAME"
+echo "  sudo systemctl start photo-sync.service"
 echo
 echo "⚠️ Please update cron tasks manually to execute the photo-sync service"
 echo "  Example: "
