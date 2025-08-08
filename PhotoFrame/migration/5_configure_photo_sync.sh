@@ -75,3 +75,4 @@ echo "  sudo systemctl start photo-sync.service"
 echo
 echo "⚠️ To schedule automatic sync, add this to root's crontab:"
 echo "  0 2 * * * /bin/systemctl start photo-sync.service"
+echo "  * * * * * /usr/bin/systemd-cat -t picframe-backup /home/ivan.cherednychok/Documents/Scripts/PhotoFrame/sync_and_resize_photos.sh home"
