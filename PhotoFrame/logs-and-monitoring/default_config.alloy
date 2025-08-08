@@ -4,7 +4,6 @@ livedebugging {
 
 logging {
   level = "info"
-  # write_to = [loki.write.default.receiver]   # ❌ remove this
 }
 
 loki.write "default" {
@@ -21,21 +20,21 @@ loki.source.journal "loki_source_journal" {
 discovery.relabel "journal_relabel_rules" {
   targets = []
 
-  # Tag by syslog identifier (systemd-cat -t picframe-backup)
+  // Tag by syslog identifier (systemd-cat -t picframe-backup)
   rule {
     source_labels = ["SYSLOG_IDENTIFIER"]
     regex         = "(picframe|picframe-backup)"
     target_label  = "app"
     replacement   = "picframe"
   }
-  # Same, but for setups where the key is exposed as __journal__syslog_identifier
+  // Same, but for setups where the key is exposed as __journal__syslog_identifier
   rule {
     source_labels = ["__journal__syslog_identifier"]
     regex         = "(picframe|picframe-backup)"
     target_label  = "app"
     replacement   = "picframe"
   }
-  # Still tag by unit name if it’s a systemd service
+  // Still tag by unit name if it’s a systemd service
   rule {
     source_labels = ["__journal__systemd_unit"]
     regex         = "(picframe|photo-sync)\\.service"
@@ -50,13 +49,13 @@ discovery.relabel "journal_relabel_rules" {
   rule { source_labels = ["__journal_priority_keyword"]; target_label = "level" }
 }
 
-# --- Metrics bits unchanged, but fix the placeholder regexes ---
+// --- Metrics bits unchanged, but fix the placeholder regexes ---
 prometheus.exporter.unix "node" {
   disable_collectors = ["ipvs", "btrfs", "infiniband", "xfs", "zfs"]
   enable_collectors  = ["meminfo"]
 
   filesystem {
-    # Example sane defaults:
+    // Example sane defaults:
     fs_types_exclude     = "^(autofs|binfmt_misc|proc|sysfs|cgroup2?|fusectl|debugfs|tracefs)$"
     mount_points_exclude = "^/(dev|proc|sys|run|var/lib/docker/.+|var/lib/containers/.+)($|/)"
     mount_timeout        = "5s"
