@@ -1,15 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# Load environment variables and validate
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/env_loader.sh"
+# --- defaults (override with flags) ---
+SMB_BACKUPS_PATH="//192.168.91.198/Backups" # e.g. //SERVER/SHARE
+SMB_BACKUPS_SUBDIR="PhotoFrames"           # remote subfolder on the share
+SMB_CRED_FILE="$HOME/.smbcred"     # file with: username=... / password=...
+MAX_BACKUPS=5
 
-
-SMB_CRED_FILE="$HOME/.smbcred"   # Credentials file format:
-                                 # username=...
-                                 # password=...
-MAX_BACKUPS=5                    # Number of backups to keep on SMB
 
 # Require prefix parameter
 if [[ $# -lt 1 ]]; then
