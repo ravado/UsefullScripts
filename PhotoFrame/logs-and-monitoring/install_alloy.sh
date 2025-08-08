@@ -54,31 +54,19 @@ fi
 
 # Prompt for Loki host
 while true; do
-  echo "🌐 Please enter your Loki IP or domain (e.g. 192.168.91.10):"
-  read loki_host
+  echo "🌐 Please enter your Loki and Prometheus IP or domain (e.g. 192.168.91.10):"
+  read loki_and_prometheus_host
 
-  if [[ -z "$loki_host" ]]; then
-    echo "❌ Loki host cannot be empty. Please try again."
-  else
-    break
-  fi
-done
-
-# Prompt for Prometheus host
-while true; do
-  echo "🌐 Please enter your Prometheus IP or domain (e.g. 192.168.91.10):"
-  read prometheus_host
-
-  if [[ -z "$prometheus_host" ]]; then
-    echo "❌ Prometheus host cannot be empty. Please try again."
+  if [[ -z "$loki_and_prometheus_host" ]]; then
+    echo "❌ Loki and Prometheus host cannot be empty. Please try again."
   else
     break
   fi
 done
 
 # Build full URLs with fixed API paths
-loki_url="http://${loki_host}:3100/loki/api/v1/push"
-prometheus_url="http://${prometheus_host}:9090/api/v1/write"
+loki_url="http://${loki_and_prometheus_host}:3100/loki/api/v1/push"
+prometheus_url="http://${loki_and_prometheus_host}:9090/api/v1/write"
 
 echo "✅ Loki URL set to: $loki_url"
 echo "✅ Prometheus URL set to: $prometheus_url"
