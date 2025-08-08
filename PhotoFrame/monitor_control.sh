@@ -2,9 +2,30 @@
 # Used to make photo frame more reliable when powers goes off and on at night. 
 # We don't want this to make the frame working at not desired times
 
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <home|batanovs|cherednychoks>"
+  exit 1
+fi
+
+frame=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+
 # Set your 'turn off' and 'turn on' times in "HH:MM" format (don't forget to sync with crontab)
-TURN_OFF_TIME="21:00"
-TURN_ON_TIME="07:00"
+if [[ $frame == "home" ]]; then
+    TURN_ON_TIME="07:00"
+    TURN_OFF_TIME="21:00"
+elif [[ $frame == "batanovs" ]]; then
+    TURN_ON_TIME="07:00"
+    TURN_OFF_TIME="23:00"
+elif [[ $frame == "cherednychoks" ]]; then
+    TURN_ON_TIME="05:00"
+    TURN_OFF_TIME="23:00"
+else
+    echo "Unknown photoframe '$frame'"
+    exit 1
+fi
+
 
 # Convert times to minutes since midnight for easy comparison
 convert_to_minutes() {
