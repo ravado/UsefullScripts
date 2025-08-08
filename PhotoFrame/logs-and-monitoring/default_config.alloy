@@ -18,7 +18,7 @@ loki.source.journal "loki_source_journal" {
   max_age = "24h"
 
   labels = {
-    job = "journal_logs"
+    job = "journal_logs",
   }
 
   // Apply relabeling to journal entries
