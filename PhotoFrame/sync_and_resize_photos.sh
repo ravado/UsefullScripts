@@ -24,7 +24,7 @@ echo -e "Sync & resize for '${PHOTOS_SUBDIR}'...\n"
 # rclone sync -v "googlephotos:shared-album/Photo Frame: ${PHOTOS_SUBDIR}" "$HOME/Pictures/PhotoFrameOriginal" --ignore-case-sync
 
 # rclone from NAS/SMB share
-rclone copy -v "nasikphotos:/Photo-Frames/${PHOTOS_SUBDIR}/Original" "$HOME/Pictures/PhotoFrameOriginal" \
+rclone copy -v "nasikphotos:/Photo-Frames/${PHOTOS_SUBDIR}/Resized" "$HOME/Pictures/PhotoFrame" \
   --ignore-case-sync \
   --copy-links \
   --create-empty-src-dirs \
@@ -34,5 +34,5 @@ rclone copy -v "nasikphotos:/Photo-Frames/${PHOTOS_SUBDIR}/Original" "$HOME/Pict
   --checkers=8
 
 # Process images
-/home/ivan.cherednychok/Documents/Scripts/PhotoFrame/resize_new_photos.sh
-/home/ivan.cherednychok/Documents/Scripts/PhotoFrame/remove_missing_photos.sh
+# /home/ivan.cherednychok/Documents/Scripts/PhotoFrame/resize_new_photos.sh
+# /home/ivan.cherednychok/Documents/Scripts/PhotoFrame/remove_missing_photos.sh
