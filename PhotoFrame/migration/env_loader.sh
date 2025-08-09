@@ -58,4 +58,4 @@ if [[ "$USERNAME" == "{username}" ]] || [[ "$PASSWORD" == "{password}" ]]; then
 fi
 
 # Optional success output
-[[ "${PF_ENV_DEBUG:-0}" == "1" ]] && echo "✅ Environment loaded successfully from $ENV_FILE"
+[[ "${PF_ENV_DEBUG:-0}" == "1" ]] && echo "✅ Environment loaded successfully from $ENV_FILE" || true
