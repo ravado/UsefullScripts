@@ -178,11 +178,14 @@ TARGET_DIR=~/Documents/Scripts
 mkdir -p ~/Documents
 
 if [ -d "$TARGET_DIR/.git" ]; then
-    echo "⚠️ $TARGET_DIR already exists, skipping clone."
+    echo "🔄 Updating existing repo..."
+    git -C "$TARGET_DIR" checkout main
+    git -C "$TARGET_DIR" pull --ff-only
+    echo "✅ Repo updated to latest main."
 else
-    echo "🔄 Cloning UsefullScripts repo (branch: $SAVED_BRANCH)..."
-    if git clone -b "$SAVED_BRANCH" git@github.com:ravado/UsefullScripts.git "$TARGET_DIR"; then
-        echo "✅ Scripts repository cloned on branch $SAVED_BRANCH"
+    echo "🔄 Cloning UsefullScripts repo (branch: main)..."
+    if git clone --branch main --single-branch git@github.com:ravado/UsefullScripts.git "$TARGET_DIR"; then
+        echo "✅ Scripts repository cloned on branch main"
     else
         echo "❌ Failed to clone Scripts repository. Check SSH keys and GitHub access."
     fi
