@@ -21,6 +21,27 @@ Bootstraps resizer/sync/backup helpers and any prerequisites:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/migration/install_all.sh)"
 ```
 
+## Next Steps
+
+1️⃣ **Edit the `backup.env` file**  
+Update it to match your SMB and PicFrame configuration.
+
+2️⃣ **Run the scripts manually in the following order as needed:**
+```bash
+./0_backup_setup.sh <prefix>
+./1_install_picframe.sh
+./2_restore_samba.sh
+./3_restore_picframe_backup.sh <prefix> <latest|filename>
+./4_sync_photos.sh
+```
+
+### Example:
+
+```bash
+./0_backup_setup.sh home
+./3_restore_picframe_backup.sh home latest
+```
+
 ## Links
 
 - [Logs & Monitoring — README](logs-and-monitoring/README.md)  

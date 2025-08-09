@@ -9,7 +9,7 @@ source "$SCRIPT_DIR/env_loader.sh"
 # === CONFIG from env ===
 SCRIPT_PATH="$HOME/Documents/Scripts/PhotoFrame/sync_and_resize_photos.sh"
 RCLONE_CONFIG="$HOME/.config/rclone/rclone.conf"
-SYSTEMD_SERVICE_NAME="photo-sync.service"
+SYSTEMD_SERVICE_NAME="photo-sync@.service"                    # <- templated
 SYSTEMD_SERVICE_PATH="/etc/systemd/system/$SYSTEMD_SERVICE_NAME"
 
 SERVER_IP="$SMB_HOST"
@@ -47,18 +47,18 @@ EOF
 chmod 600 "$RCLONE_CONFIG"
 echo "✅ rclone config updated for [$remote_name]"
 
-# === CREATE SYSTEMD SERVICE (SYSTEM-WIDE) ===
-echo "🛠️ Creating system-wide systemd service at $SYSTEMD_SERVICE_PATH"
+# === CREATE SYSTEMD TEMPLATE SERVICE ===
+echo "🛠️ Creating systemd template at $SYSTEMD_SERVICE_PATH"
 sudo tee "$SYSTEMD_SERVICE_PATH" > /dev/null <<EOF
 [Unit]
-Description=Sync and Resize Photos
+Description=Sync and Resize Photos (%i)
 After=network-online.target
 
 [Service]
 Type=oneshot
 User=root
-ExecStart=$SCRIPT_PATH
 Environment=RCLONE_CONFIG=$RCLONE_CONFIG
+ExecStart=$SCRIPT_PATH %i
 
 [Install]
 WantedBy=multi-user.target
@@ -70,9 +70,15 @@ echo "✅ Systemd service created: $SYSTEMD_SERVICE_PATH"
 echo "🔄 Reloading systemd..."
 sudo systemctl daemon-reload
 echo
-echo "To run it manually:"
-echo "  sudo systemctl start photo-sync.service"
+echo "To run it manually (pick one):"
+echo "  sudo systemctl start photo-sync@home"
+echo "  sudo systemctl start photo-sync@batanovs"
+echo "  sudo systemctl start photo-sync@cherednychoks"
 echo
-echo "⚠️ To schedule automatic sync, add this to root's crontab:"
-echo "  0 2 * * * /bin/systemctl start photo-sync.service"
-echo "  * * * * * /usr/bin/systemd-cat -t picframe-backup /home/ivan.cherednychok/Documents/Scripts/PhotoFrame/sync_and_resize_photos.sh home"
+echo "⚠️ To schedule automatic sync via root's crontab (examples):"
+echo "  0 2 * * * /bin/systemctl start photo-sync@home"
+echo "  10 2 * * * /bin/systemctl start photo-sync@batanovs"
+echo "  20 2 * * * /bin/systemctl start photo-sync@cherednychoks"
+echo
+echo "Or log directly via systemd-cat from cron:"
+echo "  * * * * * /usr/bin/systemd-cat -t picframe-backup $SCRIPT_PATH home"
