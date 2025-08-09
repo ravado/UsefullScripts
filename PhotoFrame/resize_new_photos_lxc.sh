@@ -12,10 +12,11 @@
 # TIMESTAMP_FILE="/Users/ivan.cherednychok/Pictures/PhotoFrameSandbox/PhotoFrameOriginal/_lastSyncedTimestamp"
 
 # Pi Frame
-WATCH_DIR="/home/ivan.cherednychok/Pictures/PhotoFrameOriginal"
-OUTPUT_DIR="/home/ivan.cherednychok/Pictures/PhotoFrame"
+WATCH_DIR="/mnt/photo-frame/Home/Original"
+OUTPUT_DIR="/mnt/photo-frame/Home/Resized"
+WORK_DIR="/tmp/photo-resizer"         # temp files (kept off SMB)
 # [ivan] Do not place into the rclone targed directory as it will be cleared each time
-TIMESTAMP_FILE="/home/ivan.cherednychok/Pictures/PhotoFrame/_lastSyncedTimestamp"
+TIMESTAMP_FILE="/mnt/photo-frame/Home/Resized/_lastSyncedTimestamp"
 
 RESIZE_WIDTH="1280"
 RESIZE_HEIGHT="1024"
