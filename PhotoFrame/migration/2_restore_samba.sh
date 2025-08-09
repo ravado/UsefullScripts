@@ -3,23 +3,10 @@
 ###########################
 # Load secrets from .env file
 ###########################
+
+# Load environment variables and validate
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="$SCRIPT_DIR/backup.env"
-
-if [ -f "$ENV_FILE" ]; then
-    source "$ENV_FILE"
-else
-    echo "❌ Missing $ENV_FILE. Please create it with USERNAME, PASSWORD, SMB_CRED_USER, SMB_CRED_PASS."
-    exit 1
-fi
-
-# Samba server user
-: "${USERNAME:?Missing USERNAME in env file}"
-: "${PASSWORD:?Missing PASSWORD in env file}"
-
-# SMB credentials file (for mounting from client side)
-: "${SMB_CRED_USER:?Missing SMB_CRED_USER in env file}"
-: "${SMB_CRED_PASS:?Missing SMB_CRED_PASS in env file}"
+source "$SCRIPT_DIR/env_loader.sh"
 
 SMB_CRED_FILE="/home/$USER/.smbcred"
 SMB_CONF="/etc/samba/smb.conf"
@@ -97,7 +84,9 @@ echo "✅ SMB credentials file created for user '$SMB_CRED_USER'"
 # Restart Samba
 ###########################
 echo "🔄 Restarting Samba services..."
-sudo systemctl restart smbd nmbd
+if systemctl list-unit-files | grep -q '^nmbd\.service'; then
+  sudo systemctl restart nmbd
+fi
 echo "✅ Samba services restarted"
 
 echo ""

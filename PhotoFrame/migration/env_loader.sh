@@ -4,36 +4,58 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/backup.env"
 
-if [ -f "$ENV_FILE" ]; then
-    source "$ENV_FILE"
-else
+if [ ! -f "$ENV_FILE" ]; then
     echo "❌ Missing $ENV_FILE. Please create it (you can copy backup.env.example)."
     exit 1
 fi
 
+# Load env file
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+
 ###########################
 # ✅ Validate required variables
 ###########################
+REQUIRED_VARS=(
+    SMB_HOST
+    SMB_BACKUPS_SHARE
+    SMB_BACKUPS_SUBDIR
+    SMB_BACKUPS_PATH
+    SMB_PICFRAMES_SHARE
+    SMB_PICFRAMES_SUBDIR
+    SMB_PICFRAMES_PATH
+    USERNAME
+    PASSWORD
+    SMB_CRED_USER
+    SMB_CRED_PASS
+    REMOTE_USER
+    REMOTE_HOST
+    REMOTE_PATH
+    LOCAL_PATH
+)
 
-# 📂 SMB Server Configuration
-: "${SMB_HOST:?❌ SMB_HOST is missing in $ENV_FILE}"
+missing_vars=()
+for var in "${REQUIRED_VARS[@]}"; do
+    if [ -z "${!var:-}" ]; then
+        missing_vars+=("$var")
+    fi
+done
 
-: "${SMB_BACKUPS_SHARE:?❌ SMB_BACKUPS_SHARE is missing in $ENV_FILE}"
-: "${SMB_BACKUPS_SUBDIR:?❌ SMB_BACKUPS_SUBDIR is missing in $ENV_FILE}"
-: "${SMB_BACKUPS_PATH:?❌ SMB_BACKUPS_PATH is missing in $ENV_FILE}"
+if [ ${#missing_vars[@]} -gt 0 ]; then
+    echo "❌ Missing required variables in $ENV_FILE:"
+    for var in "${missing_vars[@]}"; do
+        echo "   - $var"
+    done
+    exit 1
+fi
 
-: "${SMB_PICFRAMES_SHARE:?❌ SMB_PICFRAMES_SHARE is missing in $ENV_FILE}"
-: "${SMB_PICFRAMES_SUBDIR:?❌ SMB_PICFRAMES_SUBDIR is missing in $ENV_FILE}"
-: "${SMB_PICFRAMES_PATH:?❌ SMB_PICFRAMES_PATH is missing in $ENV_FILE}"
+###########################
+# ⚠️ Placeholder sanity check
+###########################
+if [[ "$USERNAME" == "{username}" ]] || [[ "$PASSWORD" == "{password}" ]]; then
+    echo "❌ It looks like you did not update your $ENV_FILE properly (USERNAME/PASSWORD still placeholders)."
+    exit 1
+fi
 
-# 🔑 SMB Credentials
-: "${USERNAME:?❌ USERNAME is missing in $ENV_FILE}"
-: "${PASSWORD:?❌ PASSWORD is missing in $ENV_FILE}"
-: "${SMB_CRED_USER:?❌ SMB_CRED_USER is missing in $ENV_FILE}"
-: "${SMB_CRED_PASS:?❌ SMB_CRED_PASS is missing in $ENV_FILE}"
-
-# 🔄 Remote Sync Settings
-: "${REMOTE_USER:?❌ REMOTE_USER is missing in $ENV_FILE}"
-: "${REMOTE_HOST:?❌ REMOTE_HOST is missing in $ENV_FILE}"
-: "${REMOTE_PATH:?❌ REMOTE_PATH is missing in $ENV_FILE}"
-: "${LOCAL_PATH:?❌ LOCAL_PATH is missing in $ENV_FILE}"
+# Optional success output
+[[ "${PF_ENV_DEBUG:-0}" == "1" ]] && echo "✅ Environment loaded successfully from $ENV_FILE"

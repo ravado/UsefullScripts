@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# Load environment variables and validate
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/env_loader.sh"
+
 # Detect current user
 CURRENT_USER=$(whoami)
 HOME_DIR=$(eval echo ~$CURRENT_USER)
