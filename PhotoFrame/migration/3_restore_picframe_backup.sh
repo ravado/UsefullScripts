@@ -3,7 +3,9 @@ set -euo pipefail
 
 # Load environment variables and validate
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/env_loader.sh"
+if ! source "$SCRIPT_DIR/env_loader.sh"; then
+    exit 1
+fi
 
 echo -e "=== PICFRAME RESTORATION SCRIPT ===\n"
 

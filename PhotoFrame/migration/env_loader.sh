@@ -6,7 +6,7 @@ ENV_FILE="$SCRIPT_DIR/backup.env"
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "❌ Missing $ENV_FILE. Please create it (you can copy backup.env.example)."
-    exit 1
+    return 1
 fi
 
 # Load env file
@@ -46,7 +46,7 @@ if [ ${#missing_vars[@]} -gt 0 ]; then
     for var in "${missing_vars[@]}"; do
         echo "   - $var"
     done
-    exit 1
+    return 1
 fi
 
 ###########################
@@ -54,7 +54,7 @@ fi
 ###########################
 if [[ "$USERNAME" == "{username}" ]] || [[ "$PASSWORD" == "{password}" ]]; then
     echo "❌ It looks like you did not update your $ENV_FILE properly (USERNAME/PASSWORD still placeholders)."
-    exit 1
+    return 1
 fi
 
 # Optional success output
