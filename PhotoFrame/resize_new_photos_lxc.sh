@@ -6,17 +6,25 @@
 # 3. for some reason after resizing picframe lib is not reading exif data properly so we need to copy it again
 # 4. we want to resize and copy exif data to the image into the same folder first, and then move to output directory
 
-# Mac
-# WATCH_DIR="/Users/ivan.cherednychok/Pictures/PhotoFrameSandbox/PhotoFrameOriginal"
-# OUTPUT_DIR="/Users/ivan.cherednychok/Pictures/PhotoFrameSandbox/PhotoFrame"
-# TIMESTAMP_FILE="/Users/ivan.cherednychok/Pictures/PhotoFrameSandbox/PhotoFrameOriginal/_lastSyncedTimestamp"
 
-# Pi Frame
-WATCH_DIR="/mnt/photo-frame/Home/Original"
-OUTPUT_DIR="/mnt/photo-frame/Home/Resized"
-WORK_DIR="/tmp/photo-resizer"         # temp files (kept off SMB)
-# [ivan] Do not place into the rclone targed directory as it will be cleared each time
-TIMESTAMP_FILE="/mnt/photo-frame/Home/Resized/_lastSyncedTimestamp"
+# === choose location from param: home|batanovs|cherednychoks ===
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <home|batanovs|cherednychoks>"
+  exit 1
+fi
+loc="$(echo "$1" | tr '[:upper:]' '[:lower:]')"
+case "$loc" in
+  home|batanovs|cherednychoks) ;;
+  *) echo "Unknown location '$loc'"; exit 1;;
+esac
+# Capitalize for directory names: Home, Batanovs, Cherednychoks
+LOC_CAP="$(tr '[:lower:]' '[:upper:]' <<< "${loc:0:1}")${loc:1}"
+
+BASE="/mnt/photo-frame"
+WATCH_DIR="$BASE/$LOC_CAP/Original"
+OUTPUT_DIR="$BASE/$LOC_CAP/Resized"
+# (keep timestamp alongside output so each location tracks its own sync)
+TIMESTAMP_FILE="$OUTPUT_DIR/_lastSyncedTimestamp"
 
 RESIZE_WIDTH="1280"
 RESIZE_HEIGHT="1024"
