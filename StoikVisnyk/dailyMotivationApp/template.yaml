@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  dailyMotivationApp
+
+  Sample SAM Template for dailyMotivationApp
+
+Globals:
+  Function:
+    Timeout: 15
+    MemorySize: 128
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      # RoleName: "dailyMotivationAppRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:DeleteItem'
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/UserPreferences'
+
+  TelegramBotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: 'telegramBotInteraction'
+      CodeUri: daily_message_bot/
+      Handler: app_bot.lambda_handler
+      Runtime: python3.9
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          TELEGRAM_TOKEN: '{token}'
+          CHAT_ID: '{chat_id}'
+      Events:
+        HttpPostTrigger:
+          Type: Api
+          Properties:
+            Path: /webhook
+            Method: POST
+
+  DailyMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: 'sendDailyMotivation'
+      CodeUri: daily_message/
+      Handler: app_daily_message.lambda_handler
+      Runtime: python3.9
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Policies: 
+        - DynamoDBAccess
+        - AlexaForBusinessDeviceSetup
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 4 * * ? *)
+            Enabled: true
+      Environment:
+        Variables:
+          TELEGRAM_TOKEN: '{token}'
+          CHAT_ID: '{chat_id}'
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: true
