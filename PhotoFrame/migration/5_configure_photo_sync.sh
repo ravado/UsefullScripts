@@ -20,7 +20,7 @@ fi
 # === CONSTANTS / PATHS (hardcoded user) ===
 RUN_USER="ivan.cherednychok"
 RUN_HOME="/home/${RUN_USER}"
-SCRIPT_PATH="${RUN_HOME}/Documents/Scripts/PhotoFrame/sync_and_resize_photos.sh"
+SCRIPT_PATH="${RUN_HOME}/Documents/Scripts/PhotoFrame/sync_photos_from_nasik.sh"
 RCLONE_CONFIG="${RUN_HOME}/.config/rclone/rclone.conf"
 
 SYSTEMD_TEMPLATE_NAME="photo-sync@.service"
