@@ -1,6 +1,16 @@
 #!/bin/bash
 set -e
 
+# === ARGUMENT: INSTANCE NAME (e.g., home, batanovs, cherednychoks) ===
+INSTANCE="$1"
+if [[ -z "$INSTANCE" ]]; then
+  echo "❌ Usage: $0 <instance>"
+  echo "   Example: $0 home"
+  echo "   Example: $0 batanovs"
+  echo "   Example: $0 cherednychoks"
+  exit 1
+fi
+
 # === LOAD ENV ===
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ! source "$SCRIPT_DIR/env_loader.sh"; then
@@ -98,24 +108,49 @@ echo "✅ Systemd units created:"
 echo "   - $SYSTEMD_TEMPLATE_PATH"
 echo "   - $SYSTEMD_BASE_PATH"
 
-# === RELOAD SYSTEMD & HINTS ===
+# === RELOAD SYSTEMD ===
 echo "🔄 Reloading systemd..."
 sudo systemctl daemon-reload
 
 echo
-echo "▶️ Run manually (instances):"
-echo "  sudo systemctl start photo-sync@home"
-echo "  sudo systemctl start photo-sync@batanovs"
-echo "  sudo systemctl start photo-sync@cherednychoks"
+echo "▶️ Run manually:"
+echo "  sudo systemctl start photo-sync@${INSTANCE}"
 echo
 echo "▶️ Convenience (defaults to 'home'):"
 echo "  sudo systemctl start photo-sync"
 echo "  sudo systemctl status photo-sync"
+
+# === ADD/ENSURE CRON JOB FOR THIS INSTANCE (00:00 daily) ===
+CRON_CMD="0 0 * * * /bin/systemctl start photo-sync@${INSTANCE}"
+
+# Use user's crontab; elevate if needed
+if [[ "$(id -un)" == "$RUN_USER" ]]; then
+  CRON_READ_CMD=(crontab -l)
+  CRON_WRITE_CMD=(crontab -)
+else
+  CRON_READ_CMD=(sudo crontab -l -u "$RUN_USER")
+  CRON_WRITE_CMD=(sudo crontab -u "$RUN_USER" -)
+fi
+
+if "${CRON_READ_CMD[@]}" 2>/dev/null | grep -Fqx "$CRON_CMD"; then
+  echo "⏰ Cron job already exists for ${RUN_USER}: \"$CRON_CMD\""
+else
+  echo "⏰ Adding cron job for ${RUN_USER}: \"$CRON_CMD\""
+  ( "${CRON_READ_CMD[@]}" 2>/dev/null || true; echo "$CRON_CMD" ) | "${CRON_WRITE_CMD[@]}"
+fi
+
 echo
-echo "🕒 Cron examples (sudo is not needed if added to sudo crontab -e):"
-echo "  0 2 * * * sudo /bin/systemctl start photo-sync@home"
-echo " 10 2 * * * sudo /bin/systemctl start photo-sync@batanovs"
-echo " 20 2 * * * sudo /bin/systemctl start photo-sync@cherednychoks"
+echo "✅ Cron configured for instance '${INSTANCE}' at 00:00 daily."
+echo "🕒 Current crontab for $RUN_USER:"
+"${CRON_READ_CMD[@]}" || true
+
+# === OPTIONAL: RUN NOW? ===
 echo
-echo "🪵 Or log via systemd-cat from cron:"
-echo "  * * * * * /usr/bin/systemd-cat -t picframe-backup ${SCRIPT_PATH} home"
+read -r -p "🚀 Do you want to run the sync now for '${INSTANCE}'? [y/N]: " RUN_NOW
+if [[ "$RUN_NOW" =~ ^[Yy]$ ]]; then
+  echo "▶️ Starting: sudo systemctl start photo-sync@${INSTANCE}"
+  sudo systemctl start "photo-sync@${INSTANCE}"
+  echo "ℹ️ Check status with: sudo systemctl status photo-sync@${INSTANCE}"
+else
+  echo "👌 Okay, not running now. You're all set."
+fi
