@@ -145,7 +145,7 @@ fi
 # Compress backup
 echo "📦 Compressing backup into ${BACKUP_ARCHIVE}..."
 sudo tar -czpf "$BACKUP_ARCHIVE" -C "$HOME" "$(basename "$BACKUP_DIR")"
-sudo chown "$USER":"$USER" "$BACKUP_ARCHIVE"
+# sudo chown "$USER":"$USER" "$BACKUP_ARCHIVE"
 rm -rf "$BACKUP_DIR"
 echo "✅ Backup archive created: ${BACKUP_ARCHIVE}"
 
