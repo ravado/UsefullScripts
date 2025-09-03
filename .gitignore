@@ -403,3 +403,4 @@ META-INF/
 StoikVisnyk/book/stoic/mimetype
 StoikVisnyk/book/parents/mimetype
 PhotoFrame/migration/backup.env
+Proxmox/PCIPassthrough/.env
