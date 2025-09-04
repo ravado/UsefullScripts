@@ -6,21 +6,24 @@
 # Використання:
 #   ./rename-ext.sh /шлях/до/текі           # реальне перейменування
 #   ./rename-ext.sh /шлях/до/текі --dry-run # лише показати зміни, без перейменування
+#   ./rename-ext.sh --dry-run /шлях/до/текі # те саме, прапорець може бути першим
 #
 # Додатково:
 # - Логує всі зміни у файл rename.log
-# - У разі конфлікту імен (наприклад, file.JPG та file.jpg) файл пропускається
-#   і логуються ⚠️ WARNING
+# - У разі конфлікту імен файл пропускається і логуються ⚠️ WARNING
 
-DIR="${1:-.}"
+DIR="."
 DRYRUN=0
 LOGFILE="rename.log"
 COUNT=0
 
-# перевірка на параметр --dry-run
-if [[ "$2" == "--dry-run" ]]; then
-    DRYRUN=1
-fi
+# розбір аргументів
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRYRUN=1 ;;
+        *) DIR="$arg" ;;
+    esac
+done
 
 # очистимо лог перед запуском
 > "$LOGFILE"
@@ -34,7 +37,6 @@ while read -r file; do
         newfile="${base}.${lower_ext}"
 
         if [[ -e "$newfile" ]]; then
-            # Конфлікт: цільовий файл вже існує
             msg="⚠️ WARNING: Конфлікт! $file -> $newfile (пропущено)"
             echo "$msg" | tee -a "$LOGFILE"
             continue
