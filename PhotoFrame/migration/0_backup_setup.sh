@@ -5,7 +5,7 @@ set -euo pipefail
 SMB_BACKUPS_PATH="//192.168.91.198/Backups" # e.g. //SERVER/SHARE
 SMB_BACKUPS_SUBDIR="PhotoFrames"           # remote subfolder on the share
 SMB_CRED_FILE="$HOME/.smbcred"             # file with: username=... / password=...
-MAX_BACKUPS=5
+MAX_BACKUPS=30
 
 # Require prefix parameter
 if [[ $# -lt 1 ]]; then
