@@ -79,7 +79,7 @@ fi
 
 # Save current Scripts repo branch info
 echo "📜 Saving Scripts repository branch info..."
-if [ -d "$HOME/Documents/Scripts" ]; then
+if [ -d ~/Documents/Scripts ]; then
     git -C ~/Documents/Scripts branch | grep "^\*" | cut -d' ' -f2 > "$BACKUP_DIR/git_config/scripts_branch"
     echo "✅ Scripts repo branch saved to $BACKUP_DIR/git_config/scripts_branch"
 else
