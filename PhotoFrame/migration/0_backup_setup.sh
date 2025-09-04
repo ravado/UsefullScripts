@@ -147,7 +147,7 @@ fi
 echo "📦 Compressing backup into ${BACKUP_ARCHIVE}..."
 sudo tar -czpf "$BACKUP_ARCHIVE" -C "$LOCAL_BACKUP_BASE" "$(basename "$BACKUP_DIR")"
 rm -rf "$BACKUP_DIR"
-echo "✅ Backup archive created: ${BACKUP_ARCHIVE}"
+echo "✅ Backup archive created in $LOCAL_BACKUP_BASE: ${BACKUP_ARCHIVE}"
 
 ###########################
 # SMB Upload and Retention
@@ -175,9 +175,9 @@ if [ -f "$SMB_CRED_FILE" ]; then
 
         # Remove local archive after successful upload
         rm -f "$BACKUP_ARCHIVE"
-        echo "✅ Local backup removed after SMB upload."
+        echo "✅ Local archive removed from $LOCAL_BACKUP_BASE after SMB upload."
     else
-        echo "❌ Failed to upload backup to SMB. Keeping local copy in $LOCAL_BACKUP_BASE."
+        echo "❌ Failed to upload backup to SMB. Local copy kept in $LOCAL_BACKUP_BASE."
     fi
 else
     echo "⚠️ SMB credentials file $SMB_CRED_FILE not found. Backup kept locally in $LOCAL_BACKUP_BASE."
