@@ -2,7 +2,9 @@
 #
 # === normalize_db_extensions.sh ===
 # Скрипт для нормалізації розширень у базі SQLite (таблиця file, поле extension).
-# Перед внесенням змін робить резервну копію.
+# 1. Створює резервну копію
+# 2. Видаляє дублікати (залишає рядок з мінімальним file_id)
+# 3. Приводить розширення до нижнього регістру
 #
 # Використання:
 #   ./normalize_db_extensions.sh pictureframe.db3           # реальне оновлення
@@ -48,25 +50,67 @@ if ! command -v sqlite3 &>/dev/null; then
     fi
 fi
 
-# скільки рядків підлягає зміні
-TO_UPDATE=$(sqlite3 "$DB" "SELECT COUNT(*) FROM file WHERE extension != lower(extension);")
+# === Dry-run режим ===
+if [[ $DRYRUN -eq 1 ]]; then
+    echo "🔍 Dry-run: пошук дублікатів..."
 
-if [[ "$TO_UPDATE" -eq 0 ]]; then
-    echo "ℹ️ Нічого змінювати не потрібно"
+    DUP_COUNT=$(sqlite3 "$DB" "
+        SELECT COUNT(*) FROM (
+          SELECT folder_id, basename, lower(extension), COUNT(*) AS cnt
+          FROM file
+          GROUP BY folder_id, basename, lower(extension)
+          HAVING cnt > 1
+        );")
+    echo "🗑️ Було б видалено дублікатів груп: $DUP_COUNT"
+
+    if [[ "$DUP_COUNT" -gt 0 ]]; then
+        sqlite3 "$DB" "
+            SELECT folder_id, basename, group_concat(extension), COUNT(*) 
+            FROM file
+            GROUP BY folder_id, basename, lower(extension)
+            HAVING COUNT(*) > 1
+            LIMIT 50;" | sed 's/|/  |  /g'
+        echo "ℹ️ Показані перші 50 груп дублікатів"
+    fi
+
+    TO_UPDATE=$(sqlite3 "$DB" \
+        "SELECT COUNT(*) FROM file WHERE extension != lower(extension);")
+    echo "🔍 Рядків для оновлення: $TO_UPDATE"
+
+    if [[ "$TO_UPDATE" -gt 0 ]]; then
+        sqlite3 "$DB" "
+            SELECT file_id, extension, lower(extension) AS new_ext 
+            FROM file 
+            WHERE extension != lower(extension) 
+            LIMIT 50;" | sed 's/|/  |  /g'
+        echo "ℹ️ Показані перші 50 рядків для оновлення"
+    fi
+
+    echo "👉 Це був dry-run. Реальних змін не зроблено."
     exit 0
 fi
 
-if [[ $DRYRUN -eq 1 ]]; then
-    echo "🔍 Dry-run: знайдено $TO_UPDATE рядків для оновлення"
-    sqlite3 "$DB" "SELECT file_id, extension FROM file WHERE extension != lower(extension) LIMIT 50;"
-    echo "ℹ️ Показані перші 50 рядків (щоб не захаращувати консоль)"
-    echo "👉 Реальних змін не зроблено"
-else
-    # резервна копія
-    BACKUP="${DB}.bak.$(date +%Y%m%d%H%M%S)"
-    cp "$DB" "$BACKUP"
-    echo "📦 Резервну копію створено: $BACKUP"
+# === Реальний режим ===
+# резервна копія
+BACKUP="${DB}.bak.$(date +%Y%m%d%H%M%S)"
+cp "$DB" "$BACKUP"
+echo "📦 Резервну копію створено: $BACKUP"
 
-    sqlite3 "$DB" "UPDATE file SET extension = lower(extension) WHERE extension != lower(extension);"
-    echo "✅ Оновлено $TO_UPDATE рядків"
-fi
+# видалення дублікатів
+DELETED=$(sqlite3 "$DB" "
+    DELETE FROM file 
+    WHERE file_id NOT IN (
+      SELECT MIN(file_id)
+      FROM file
+      GROUP BY folder_id, basename, lower(extension)
+    );
+    SELECT changes();")
+echo "🗑️ Видалено рядків: $DELETED"
+
+# нормалізація розширень
+UPDATED=$(sqlite3 "$DB" "
+    UPDATE file 
+    SET extension = lower(extension) 
+    WHERE extension != lower(extension);
+    SELECT changes();")
+echo "✅ Оновлено рядків: $UPDATED"
