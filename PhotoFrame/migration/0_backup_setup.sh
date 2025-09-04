@@ -24,12 +24,11 @@ TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 LOCAL_BACKUP_BASE="$HOME/Backups"
 mkdir -p "$LOCAL_BACKUP_BASE"
 
-BACKUP_DIR="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup_${TIMESTAMP}"
-BACKUP_ARCHIVE="${BACKUP_DIR}.tar.gz"
+# Put everything inside ~/Backups
+BACKUP_DIR="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup${TIMESTAMP}"
+BACKUP_ARCHIVE="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup${TIMESTAMP}.tar.gz"
 
 echo "📂 Creating backup directory: $BACKUP_DIR"
-
-# Create backup directory structure (including SSH and Git configs)
 mkdir -p "$BACKUP_DIR/ssh" "$BACKUP_DIR/git_config"
 echo "✅ Backup directory structure created."
 
@@ -145,7 +144,7 @@ fi
 
 # Compress backup
 echo "📦 Compressing backup into ${BACKUP_ARCHIVE}..."
-sudo tar -czpf "$BACKUP_ARCHIVE" -C "$LOCAL_BACKUP_BASE" "$(basename "$BACKUP_DIR")"
+sudo tar -czpf "$BACKUP_ARCHIVE" -C "$BACKUP_DIR/.." "$(basename "$BACKUP_DIR")"
 rm -rf "$BACKUP_DIR"
 echo "✅ Backup archive created in $LOCAL_BACKUP_BASE: ${BACKUP_ARCHIVE}"
 
