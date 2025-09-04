@@ -58,7 +58,7 @@ fi
 
 if [[ $DRYRUN -eq 1 ]]; then
     echo "🔍 Dry-run: знайдено $TO_UPDATE рядків для оновлення"
-    sqlite3 "$DB" "SELECT id, extension FROM file WHERE extension != lower(extension) LIMIT 50;"
+    sqlite3 "$DB" "SELECT file_id, extension FROM file WHERE extension != lower(extension) LIMIT 50;"
     echo "ℹ️ Показані перші 50 рядків (щоб не захаращувати консоль)"
     echo "👉 Реальних змін не зроблено"
 else
