@@ -25,8 +25,8 @@ LOCAL_BACKUP_BASE="$HOME/Backups"
 mkdir -p "$LOCAL_BACKUP_BASE"
 
 # Put everything inside ~/Backups
-BACKUP_DIR="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup${TIMESTAMP}"
-BACKUP_ARCHIVE="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup${TIMESTAMP}.tar.gz"
+BACKUP_DIR="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup_${TIMESTAMP}"
+BACKUP_ARCHIVE="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup_${TIMESTAMP}.tar.gz"
 
 echo "📂 Creating backup directory: $BACKUP_DIR"
 mkdir -p "$BACKUP_DIR/ssh" "$BACKUP_DIR/git_config"
