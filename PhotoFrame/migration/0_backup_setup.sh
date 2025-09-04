@@ -154,19 +154,27 @@ echo "✅ Backup archive created: ${BACKUP_ARCHIVE}"
 ###########################
 if [ -f "$SMB_CRED_FILE" ]; then
     echo "🌐 Uploading backup to SMB share $SMB_BACKUPS_PATH..."
-    if smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; put $(basename "$BACKUP_ARCHIVE")"; then
-        echo "✅ Backup uploaded to SMB."
+
+    ARCHIVE_DIR="$(dirname "$BACKUP_ARCHIVE")"
+    ARCHIVE_FILE="$(basename "$BACKUP_ARCHIVE")"
+
+    if smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
+        -c "cd $SMB_BACKUPS_SUBDIR; lcd $ARCHIVE_DIR; put $ARCHIVE_FILE"; then
         
+        echo "✅ Backup uploaded to SMB."
+
         echo "🗑️ Applying retention policy (keep last $MAX_BACKUPS backups)..."
-        smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; ls" | \
-            awk '{print $1}' | grep '^picframe_setup_backup_.*\.tar\.gz$' | sort -r | \
-            tail -n +$((MAX_BACKUPS+1)) | while read OLD_FILE; do
+        smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
+            -c "cd $SMB_BACKUPS_SUBDIR; ls" | \
+            awk '{print $1}' | grep '^picframe_.*_setup_backup_.*\.tar\.gz$' | sort -r | \
+            tail -n +$((MAX_BACKUPS+1)) | while read -r OLD_FILE; do
                 echo "🗑️ Removing old backup on SMB: $OLD_FILE"
-                smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; del $OLD_FILE"
+                smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
+                    -c "cd $SMB_BACKUPS_SUBDIR; del $OLD_FILE"
             done
 
         # Remove local archive after successful upload
-        rm -f "${BACKUP_ARCHIVE}"
+        rm -f "$BACKUP_ARCHIVE"
         echo "✅ Local backup removed after SMB upload."
     else
         echo "❌ Failed to upload backup to SMB. Keeping local copy."
