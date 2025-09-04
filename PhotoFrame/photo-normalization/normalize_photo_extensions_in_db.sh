@@ -1,14 +1,14 @@
 #!/bin/bash
 #
-# === normalize_db_extensions.sh ===
+# === normalize_photo_extensions_in_db.sh ===
 # Скрипт для нормалізації розширень у базі SQLite (таблиця file, поле extension).
 # 1. Створює резервну копію
 # 2. Видаляє дублікати (залишає рядок з мінімальним file_id)
 # 3. Приводить розширення до нижнього регістру
 #
 # Використання:
-#   ./normalize_db_extensions.sh pictureframe.db3           # реальне оновлення
-#   ./normalize_db_extensions.sh pictureframe.db3 --dry-run # показати, без змін
+#   ./normalize_photo_extensions_in_db.sh pictureframe.db3           # реальне оновлення
+#   ./normalize_photo_extensions_in_db.sh pictureframe.db3 --dry-run # показати, без змін
 #
 
 DB=""
