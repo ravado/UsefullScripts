@@ -4,9 +4,8 @@ set -euo pipefail
 # --- defaults (override with flags) ---
 SMB_BACKUPS_PATH="//192.168.91.198/Backups" # e.g. //SERVER/SHARE
 SMB_BACKUPS_SUBDIR="PhotoFrames"           # remote subfolder on the share
-SMB_CRED_FILE="$HOME/.smbcred"     # file with: username=... / password=...
+SMB_CRED_FILE="$HOME/.smbcred"             # file with: username=... / password=...
 MAX_BACKUPS=5
-
 
 # Require prefix parameter
 if [[ $# -lt 1 ]]; then
@@ -22,7 +21,10 @@ PICFRAME_DATA_DIR="$HOME/picframe/picframe_data"
 
 # Timestamped backup paths with prefix
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
-BACKUP_DIR="$HOME/picframe_${PREFIX}_setup_backup_${TIMESTAMP}"
+LOCAL_BACKUP_BASE="$HOME/Backups"
+mkdir -p "$LOCAL_BACKUP_BASE"
+
+BACKUP_DIR="$LOCAL_BACKUP_BASE/picframe_${PREFIX}_setup_backup_${TIMESTAMP}"
 BACKUP_ARCHIVE="${BACKUP_DIR}.tar.gz"
 
 echo "📂 Creating backup directory: $BACKUP_DIR"
@@ -63,7 +65,6 @@ echo "🛠️ Backing up git configuration..."
 git config --global user.name > "$BACKUP_DIR/git_config/user.name"
 git config --global user.email > "$BACKUP_DIR/git_config/user.email"
 echo "✅ Git config saved to $BACKUP_DIR/git_config/"
-
 
 # Backup entire PicFrame data directory
 echo "🖼️ Backing up entire PicFrame data directory..."
@@ -144,8 +145,7 @@ fi
 
 # Compress backup
 echo "📦 Compressing backup into ${BACKUP_ARCHIVE}..."
-sudo tar -czpf "$BACKUP_ARCHIVE" -C "$HOME" "$(basename "$BACKUP_DIR")"
-# sudo chown "$USER":"$USER" "$BACKUP_ARCHIVE"
+sudo tar -czpf "$BACKUP_ARCHIVE" -C "$LOCAL_BACKUP_BASE" "$(basename "$BACKUP_DIR")"
 rm -rf "$BACKUP_DIR"
 echo "✅ Backup archive created: ${BACKUP_ARCHIVE}"
 
@@ -163,10 +163,10 @@ if [ -f "$SMB_CRED_FILE" ]; then
         
         echo "✅ Backup uploaded to SMB."
 
-        echo "🗑️ Applying retention policy (keep last $MAX_BACKUPS backups)..."
+        echo "🗑️ Applying retention policy (keep last $MAX_BACKUPS backups for prefix '$PREFIX')..."
         smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
             -c "cd $SMB_BACKUPS_SUBDIR; ls" | \
-            awk '{print $1}' | grep '^picframe_.*_setup_backup_.*\.tar\.gz$' | sort -r | \
+            awk '{print $1}' | grep "^picframe_${PREFIX}_setup_backup_.*\.tar\.gz$" | sort -r | \
             tail -n +$((MAX_BACKUPS+1)) | while read -r OLD_FILE; do
                 echo "🗑️ Removing old backup on SMB: $OLD_FILE"
                 smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
@@ -177,10 +177,10 @@ if [ -f "$SMB_CRED_FILE" ]; then
         rm -f "$BACKUP_ARCHIVE"
         echo "✅ Local backup removed after SMB upload."
     else
-        echo "❌ Failed to upload backup to SMB. Keeping local copy."
+        echo "❌ Failed to upload backup to SMB. Keeping local copy in $LOCAL_BACKUP_BASE."
     fi
 else
-    echo "⚠️ SMB credentials file $SMB_CRED_FILE not found. Backup kept locally."
+    echo "⚠️ SMB credentials file $SMB_CRED_FILE not found. Backup kept locally in $LOCAL_BACKUP_BASE."
 fi
 
 echo "✅ Backup process completed."
