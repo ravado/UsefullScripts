@@ -9,8 +9,16 @@
 #   ./normalize_db_extensions.sh pictureframe.db3 --dry-run # показати, без змін
 #
 
-DB="$1"
+DB=""
 DRYRUN=0
+
+# розбір аргументів
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRYRUN=1 ;;
+        *) DB="$arg" ;;
+    esac
+done
 
 if [[ -z "$DB" ]]; then
     echo "❌ Помилка: потрібно вказати шлях до бази даних"
@@ -20,10 +28,6 @@ fi
 if [[ ! -f "$DB" ]]; then
     echo "❌ Помилка: база даних $DB не існує"
     exit 1
-fi
-
-if [[ "$2" == "--dry-run" ]]; then
-    DRYRUN=1
 fi
 
 # --- Перевірка наявності sqlite3 ---
