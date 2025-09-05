@@ -1,4 +1,7 @@
 #!/bin/bash
+# Not really needed since now we sync with rclone from NASik
+# Use next 5_configure_photo_sync.sh better
+
 set -euo pipefail
 
 # Load environment variables and validate
