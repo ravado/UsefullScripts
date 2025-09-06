@@ -25,8 +25,7 @@ sudo apt install -y \
     locales \
     wireguard rsync \
     inotify-tools imagemagick libgpiod2 smbclient rclone samba mosquitto mosquitto-clients bc \
-    vlc btop
-    # xwayland labwc wlr-randr vlc
+    vlc btop xwayland labwc wlr-randr
 
 # Install resolvconf
 sudo apt install -y resolvconf
@@ -55,6 +54,9 @@ sudo sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 sudo sed -i 's/^# *uk_UA.UTF-8 UTF-8/uk_UA.UTF-8 UTF-8/' /etc/locale.gen
 sudo locale-gen
 sudo update-locale LANG=en_US.UTF-8
+
+echo "🖥️ Configuring boot behaviour (Console Autologin)..."
+sudo raspi-config nonint do_boot_behaviour B2
 
 # ✅ Install Adafruit Python modules
 echo "🐍 Installing required Python modules..."
@@ -109,27 +111,18 @@ sudo bash -c "cat > $SERVICE_FILE" <<EOL
 [Unit]
 Description=Picframe Slideshow
 After=multi-user.target
-# After=network.target
 
 [Service]
 User=root
 Type=simple
-#Environment=DISPLAY=:0
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/ivan/.Xauthority
+Environment=LANG=en_US.UTF-8
+
 ExecStart=/usr/bin/xinit /home/ivan.cherednychok/picframe/picframe_data/launch.sh -- :0 -s 0 vt1 -keeptty
-# ExecStart=xinit /usr/bin/python3 /home/ivan.cherednychok/picframe/picframe_data/run_start.py /home/ivan.cherednychok/picframe/picframe_data/config/configuration.yaml -- :0 -s 0 -dpms
-# •  -- :0 - Specifies display :0 and separates application args from X server args
-# •  -s 0 - Disables screen saver (sets timeout to 0)
-# •  -dpms - Disables Display Power Management Signaling
-
-
-# User=$CURRENT_USER
-# ExecStart=$PICFRAME_BIN $HOME_DIR/.config/picframe/configuration.yaml
 
 Restart=always
 RestartSec=5
-
-# Make sure environment variables are loaded (e.g., LANG)
-Environment=LANG=en_US.UTF-8
 
 [Install]
 WantedBy=multi-user.target

@@ -19,18 +19,46 @@ mkdir -p "$LOCAL_TMP"
 ###########################
 # Parse options
 ###########################
-VERBOSE=0
-if [[ "${1:-}" == "-v" ]]; then
-    VERBOSE=1
-    shift
-fi
 
-# ✅ Require prefix and backup argument
+# Defaults
+VERBOSE=0          # --verbose : extra debug/summary output
+RESTORE_SERVICE=0  # --with-service : restore original systemd service from backup
+
+POSITIONAL=()
+
+# Loop through all args
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose)
+      # Enable verbose output (extra logging and summary at the end)
+      VERBOSE=1
+      ;;
+    --with-service)
+      # Restore the systemd picframe.service from the backup archive
+      # If not set, script will keep the service created by the installer
+      RESTORE_SERVICE=1
+      ;;
+    *)
+      # Any non-flag is treated as a positional argument
+      POSITIONAL+=("$arg")
+      ;;
+  esac
+done
+
+# Put back only the positional args for easy handling
+set -- "${POSITIONAL[@]}"
+
+# --- Required arguments ---
+# 1: <prefix>        (home / batanovs / cherednychoks)
+# 2: <backup file>   (filename.tar.gz OR "latest")
 if [ $# -lt 2 ]; then
-    echo "❌ Usage: $0 [-v] <prefix> <backup_file.tar.gz|latest>"
+    echo "❌ Usage: $0 [--verbose] [--with-service] <prefix> <backup_file.tar.gz|latest>"
+    echo ""
     echo "Examples:"
     echo "  $0 home latest"
-    echo "  $0 batanovs picframe_batanovs_setup_backup_20250802_105212.tar.gz"
+    echo "  $0 --verbose home latest"
+    echo "  $0 home latest --with-service"
+    echo "  $0 --verbose --with-service home latest"
     exit 1
 fi
 
@@ -138,16 +166,38 @@ else
     echo "⚠️ No picframe_data found in backup"
 fi
 
-# It should be better recreated in #1 install_picframe script
-# echo "⚙️ Restoring systemd service..."
-# if [ -f "$BACKUP_FULL/picframe.service" ]; then
-#     sudo cp -v "$BACKUP_FULL/picframe.service" /etc/systemd/system/
-#     sudo systemctl daemon-reload
-#     sudo systemctl enable picframe.service
-#     echo "✅ picframe.service restored"
-# else
-#     echo "⚠️ No picframe.service found in backup"
-# fi
+echo "📑 Applying updated configuration for $PREFIX..."
+
+CONFIG_REMOTE="configs/${PREFIX}_updated_config.yml"
+CONFIG_LOCAL="$LOCAL_TMP/${PREFIX}_updated_config.yml"
+
+# Fetch updated config from SMB share
+smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR/configs; lcd $LOCAL_TMP; get ${PREFIX}_updated_config.yml" || {
+    echo "⚠️ No updated config found on SMB for $PREFIX"
+}
+
+# Apply if downloaded
+if [ -f "$CONFIG_LOCAL" ]; then
+    mkdir -p "$PICFRAME_DATA/config"
+    cp -v "$CONFIG_LOCAL" "$PICFRAME_DATA/config/configuration.yaml"
+    echo "✅ Updated configuration.yaml applied from $CONFIG_LOCAL"
+else
+    echo "⚠️ Updated config not applied (file missing after fetch)"
+fi
+
+if [[ $RESTORE_SERVICE -eq 1 ]]; then
+    echo "⚙️ Restoring systemd service..."
+    if [ -f "$BACKUP_FULL/picframe.service" ]; then
+        sudo cp -v "$BACKUP_FULL/picframe.service" /etc/systemd/system/
+        sudo systemctl daemon-reload
+        sudo systemctl enable picframe.service
+        echo "✅ picframe.service restored from backup"
+    else
+        echo "⚠️ No picframe.service found in backup"
+    fi
+else
+    echo "ℹ️ Skipping service restore (use --with-service to enable)"
+fi
 
 echo "🔑 Restoring SSH keys..."
 if [ -f "$BACKUP_FULL/ssh/id_ed25519" ]; then
