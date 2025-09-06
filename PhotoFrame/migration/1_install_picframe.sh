@@ -26,6 +26,7 @@ sudo apt install -y \
     wireguard rsync \
     inotify-tools imagemagick libgpiod2 smbclient rclone samba mosquitto mosquitto-clients bc \
     vlc btop xwayland labwc wlr-randr
+    # xwayland labwc wlr-randr #TODO: [ivan] check if thats needed anyway
 
 # Install resolvconf
 sudo apt install -y resolvconf

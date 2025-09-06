@@ -16,15 +16,19 @@ echo "🔧 Updating system & installing basics…"
 sudo apt update
 sudo apt install -y curl wget gpg ca-certificates flatpak
 
-# Enable Flathub (system-wide)
+# Enable Flathub (system-wide) if missing
 if ! flatpak remotes | grep -q flathub; then
   echo "➕ Enabling Flathub…"
   sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 fi
 
-echo "📦 Installing Telegram & Viber (Flatpak)…"
+echo "📦 Installing apps (Flatpak)…"
+# Telegram
 flatpak install -y flathub org.telegram.desktop
+# Viber
 flatpak install -y flathub com.viber.Viber
+# Signal
+flatpak install -y flathub org.signal.Signal
 
 echo "🖥️ Installing TeamViewer (.deb)…"
 tmpdeb="$(mktemp /tmp/teamviewer_XXXX.deb)"
@@ -50,4 +54,4 @@ if [ "$WITH_BRAVE" -eq 1 ]; then
   sudo apt install -y brave-browser
 fi
 
-echo "✅ Done. Installed TeamViewer, Viber, Telegram$( [ $WITH_CHROME -eq 1 ] && echo ', Chrome' )$( [ $WITH_BRAVE -eq 1 ] && echo ', Brave' )."
+echo "✅ Done. Installed TeamViewer, Viber, Telegram, Signal$( [ $WITH_CHROME -eq 1 ] && echo ', Chrome' )$( [ $WITH_BRAVE -eq 1 ] && echo ', Brave' )."
