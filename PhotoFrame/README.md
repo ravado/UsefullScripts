@@ -10,8 +10,9 @@ One-liner (runs as root; auto-handles sudo if needed):
 
 ```bash
 sudo apt update && sudo apt install -y curl
+```
 
-
+```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/logs-and-monitoring/install_alloy.sh)"
 ```
 
