@@ -284,12 +284,8 @@ fi
 echo "🧹 Cleaning up temporary files..."
 rm -rf "$BACKUP_FULL"
 
-echo -e "\n=== RESTORATION COMPLETE ===\n"
-echo "Next steps:"
-echo "1. sync the photos from previous pi frame with \`4_sync_photos.sh\` script"
-echo "2. restart the pi: sudo reboot now"
-echo "3. Start WireGuard: sudo systemctl restart wg-quick@wg0"
-echo "4. Start PicFrame: sudo systemctl start picframe.service"
-echo "5. Check logs: sudo journalctl -u picframe.service -f"
-
-echo "6. Update configuration.yaml with new fields added in new picframe sources..."
+echo -e "\n=== ✅ RESTORATION COMPLETE ===\n"
+echo "🚀 Next steps:"
+echo "1️⃣ Configure photo sync service: ./5_configure_photo_sync.sh <prefix>"
+echo "2️⃣ 🔄 Restart the Pi: sudo reboot now"
+echo "3️⃣ 🔒 Start WireGuard: sudo systemctl restart wg-quick@wg0"
