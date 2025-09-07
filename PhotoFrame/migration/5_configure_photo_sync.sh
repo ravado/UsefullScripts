@@ -163,8 +163,8 @@ echo "    crontab -e"
 echo "    ❌ Delete line:"
 echo "    0 1 * * * /home/ivan.cherednychok/Documents/Scripts/PhotoFrame/sync_and_resize_photos.sh >> /home/ivan.cherednychok/picframe/picframe_data/cron_log.txt 2>&1"
 echo
-echo "2️⃣ ➕ Add new cron job for daily sync at midnight:"
-echo "    0 0 * * * /bin/systemctl start photo-sync@${INSTANCE}"
+echo "2️⃣ ➕ Add new cron job for daily sync at midnight: (sudo is important!)"
+echo "    0 0 * * * sudo /bin/systemctl start photo-sync@${INSTANCE}"
 echo
 echo "3️⃣ 📌 Run a manual sync if needed:"
 echo "    sudo systemctl start photo-sync@${INSTANCE}"
