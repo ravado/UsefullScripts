@@ -4,6 +4,7 @@ set -euo pipefail
 # --- Configurable paths ---
 LOCAL_PATH="${HOME}/Downloads/Photos"
 NAS_BASE="/Volumes/Photo-Frames"
+LOG_FILE="${HOME}/sync_photos.log"
 
 # --- Defaults ---
 TARGET=""
@@ -41,8 +42,8 @@ fi
 
 # Capitalize first letter for path mapping
 case "$TARGET" in
-  home)       TARGET_DIR="Home" ;;
-  batanovs)   TARGET_DIR="Batanovs" ;;
+  home)          TARGET_DIR="Home" ;;
+  batanovs)      TARGET_DIR="Batanovs" ;;
   cherednychoks) TARGET_DIR="Cherednychoks" ;;
   *)
     echo "❌ Invalid target: $TARGET"
@@ -52,15 +53,20 @@ esac
 
 DEST="${NAS_BASE}/${TARGET_DIR}/Original"
 
-echo "📂 Syncing photos"
-echo "   From: ${LOCAL_PATH}"
-echo "   To:   ${DEST}"
-[[ $DRY_RUN -eq 1 ]] && echo "   Mode: Dry-run" || echo "   Mode: Live"
+# --- Logging ---
+timestamp() { date +"%Y-%m-%d %H:%M:%S"; }
+log() { echo "[$(timestamp)] $*" | tee -a "$LOG_FILE"; }
+
+log "📂 Starting photo sync"
+log "   From: ${LOCAL_PATH}"
+log "   To:   ${DEST}"
+[[ $DRY_RUN -eq 1 ]] && log "   Mode: Dry-run" || log "   Mode: Live"
 
 # --- Run rsync ---
 RSYNC_OPTS="-avh --delete"
 [[ $DRY_RUN -eq 1 ]] && RSYNC_OPTS="$RSYNC_OPTS --dry-run"
 
-rsync $RSYNC_OPTS "$LOCAL_PATH/" "$DEST/"
+# Pipe rsync output to both console and logfile
+rsync $RSYNC_OPTS "$LOCAL_PATH/" "$DEST/" 2>&1 | tee -a "$LOG_FILE"
 
-echo "✅ Sync finished"
+log "✅ Sync finished"
