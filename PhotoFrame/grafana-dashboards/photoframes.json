@@ -39,7 +39,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "# PhotoFrame A",
+        "content": "# PhotoFrame Home",
         "mode": "markdown"
       },
       "pluginVersion": "12.0.2",
@@ -65,7 +65,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "# PhotoFrame B",
+        "content": "# PhotoFrame Batanovs",
         "mode": "markdown"
       },
       "pluginVersion": "12.0.2",
@@ -91,7 +91,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "# PhotoFrame C",
+        "content": "# PhotoFrame Cherednychoks",
         "mode": "markdown"
       },
       "pluginVersion": "12.0.2",
@@ -1142,12 +1142,12 @@
         {
           "direction": "backward",
           "editorMode": "code",
-          "expr": "count_over_time({instance=\"photoframe-home\"} |~ \"Copied \\\\(new\\\\)\" [7d])",
+          "expr": "count_over_time({instance=\"photoframe-home\"} |~ \"Copied \\\\(new\\\\)\" [14d])",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Added photos (7 days)",
+      "title": "Added photos (14 days)",
       "type": "stat"
     },
     {
@@ -1270,12 +1270,12 @@
         {
           "direction": "backward",
           "editorMode": "code",
-          "expr": "count_over_time({instance=\"photoframe-batanovs\"} |~ \"Copied \\\\(new\\\\)\" [1d])",
+          "expr": "count_over_time({instance=\"photoframe-batanovs\"} |~ \"Copied \\\\(new\\\\)\" [14d])",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Added photos (7 days)",
+      "title": "Added photos (14 days)",
       "type": "stat"
     },
     {
@@ -1397,12 +1397,12 @@
         {
           "direction": "backward",
           "editorMode": "code",
-          "expr": "count_over_time({instance=\"photoframe-cherednychoks\"} |~ \"Copied \\\\(new\\\\)\" [7d])",
+          "expr": "count_over_time({instance=\"photoframe-cherednychoks\"} |~ \"Copied \\\\(new\\\\)\" [14d])",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Added photos (7 days)",
+      "title": "Added photos (14 days)",
       "type": "stat"
     },
     {
@@ -1598,12 +1598,12 @@
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-90d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Photo Frames",
   "uid": "cb488fc7-2d0a-4ea5-a185-5eca0c2880be",
-  "version": 47
+  "version": 53
 }
