@@ -63,10 +63,45 @@ log "   To:   ${DEST}"
 [[ $DRY_RUN -eq 1 ]] && log "   Mode: Dry-run" || log "   Mode: Live"
 
 # --- Run rsync ---
-RSYNC_OPTS="-avh --delete"
+RSYNC_OPTS="-avh --delete --itemize-changes --human-readable --info=NAME0,STATS2"
 [[ $DRY_RUN -eq 1 ]] && RSYNC_OPTS="$RSYNC_OPTS --dry-run"
 
-# Pipe rsync output to both console and logfile
-rsync $RSYNC_OPTS "$LOCAL_PATH/" "$DEST/" 2>&1 | tee -a "$LOG_FILE"
+START_TS=$(date +%s)
 
+RSYNC_OUTPUT=$(rsync $RSYNC_OPTS "$LOCAL_PATH/" "$DEST/" 2>&1 | tee -a "$LOG_FILE")
+
+END_TS=$(date +%s)
+DURATION=$((END_TS - START_TS))
+
+# --- Group file changes ---
+NEW_FILES=$(echo "$RSYNC_OUTPUT" | grep '^>f+++++++++' || true)
+UPDATED_FILES=$(echo "$RSYNC_OUTPUT" | grep '^>f' | grep -v '+++++++++' || true)
+DELETED_FILES=$(echo "$RSYNC_OUTPUT" | grep '^\*deleting' || true)
+
+# --- Parse summary stats ---
+CREATED=$(echo "$RSYNC_OUTPUT" | grep -E "Number of created files:" | awk '{print $5}')
+DELETED=$(echo "$RSYNC_OUTPUT" | grep -E "Number of deleted files:" | awk '{print $5}')
+UPDATED=$(echo "$UPDATED_FILES" | wc -l | tr -d ' ')
+TOTAL=$(echo "$RSYNC_OUTPUT" | grep -E "Number of files:" | awk '{print $4}')
+SIZE=$(echo "$RSYNC_OUTPUT" | grep -E "Total file size:" | sed -E 's/.*: (.*)/\1/')
+
+# --- Print grouped lists ---
+if [[ -n "$NEW_FILES" ]]; then
+  log "➕ New files:"
+  echo "$NEW_FILES" | tee -a "$LOG_FILE"
+fi
+
+if [[ -n "$UPDATED_FILES" ]]; then
+  log "✏️  Updated files:"
+  echo "$UPDATED_FILES" | tee -a "$LOG_FILE"
+fi
+
+if [[ -n "$DELETED_FILES" ]]; then
+  log "🗑️  Deleted files:"
+  echo "$DELETED_FILES" | tee -a "$LOG_FILE"
+fi
+
+# --- Final summary ---
+log "⏱️ Duration: ${DURATION} seconds"
+log "📊 Summary: ${CREATED} new, ${DELETED} deleted, ${UPDATED} updated, total ${TOTAL} files (${SIZE})"
 log "✅ Sync finished"
