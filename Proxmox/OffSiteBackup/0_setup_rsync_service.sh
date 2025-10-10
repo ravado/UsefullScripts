@@ -1,30 +1,83 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-USER="backup"
-PASS="SuperSecretPass"        # зміни пароль
-MOUNT_POINT="/mnt/backupdisk" # змінюй на свій диск
-UUID="PUT-YOUR-UUID-HERE"     # заміни на реальний UUID з lsblk
+echo "💾 === Raspberry Pi Offsite Backup Setup ==="
 
-echo "🚀 Installing rsync..."
-sudo apt-get update -y && sudo apt-get install -y rsync
+# --- 🧠 User input with defaults ---
+read -rp "👤 Введи ім'я користувача для rsync [backup]: " USER
+USER=${USER:-backup}
 
-echo "👤 Ensuring backup user exists..."
-if ! id "$USER" >/dev/null 2>&1; then
-    sudo adduser --disabled-password --gecos "" $USER
+read -rp "📂 Введи точку монтування SSD [/mnt/backupdisk]: " MOUNT_POINT
+MOUNT_POINT=${MOUNT_POINT:-/mnt/backupdisk}
+
+read -rsp "🔑 Введи пароль для користувача $USER (обов’язково): " PASS
+echo
+if [[ -z "$PASS" ]]; then
+    echo "❌ Пароль не може бути порожнім."
+    exit 1
 fi
 
-echo "📂 Preparing mount point..."
-sudo mkdir -p $MOUNT_POINT
+echo "============================================="
+echo "🧾 Параметри:"
+echo "   Ім’я користувача: $USER"
+echo "   Точка монтування: $MOUNT_POINT"
+echo "============================================="
+
+# --- 🔍 Detect external disk ---
+DISK=$(lsblk -ndo NAME,TRAN | awk '$2=="usb"{print "/dev/"$1; exit}')
+
+if [[ -z "${DISK}" ]]; then
+    echo "❌ Не знайдено жодного USB-диску. Підключи SSD і повтори."
+    exit 1
+fi
+if [[ "$DISK" == *mmcblk0* ]]; then
+    echo "🚫 Обрано системну SD-карту ($DISK). Зупиняюсь, щоб не стерти систему."
+    exit 1
+fi
+echo "✅ Знайдено диск: $DISK"
+
+# --- 🔍 Check filesystem ---
+FSTYPE=$(lsblk -no FSTYPE "$DISK" | head -n1)
+if [[ -z "$FSTYPE" ]]; then
+    echo "⚠️  На диску $DISK немає файлової системи."
+    read -rp "Форматувати в ext4 і стерти всі дані? (yes/NO): " confirm
+    if [[ "${confirm,,}" == "yes" ]]; then
+        echo "🧹 Форматую диск у ext4..."
+        sudo umount -f "${DISK}"* || true
+        sudo mkfs.ext4 -F -L BACKUPDISK "$DISK"
+        echo "✅ Диск відформатовано."
+    else
+        echo "🚫 Форматування скасовано. Завершення."
+        exit 1
+    fi
+else
+    echo "ℹ️  На диску вже є файловa система: $FSTYPE (не форматую)."
+fi
+
+# --- 📎 Get UUID ---
+UUID=$(sudo blkid -s UUID -o value "$DISK")
+echo "📎 UUID диску: $UUID"
+
+# --- 📂 Mount setup ---
+sudo mkdir -p "$MOUNT_POINT"
+
 if ! grep -q "$UUID" /etc/fstab; then
+    echo "📄 Додаю запис у /etc/fstab..."
     echo "UUID=$UUID  $MOUNT_POINT  ext4  defaults,noatime  0  2" | sudo tee -a /etc/fstab
 fi
 
-echo "🔄 Mounting disk..."
+echo "🔄 Монтуємо диск..."
 sudo mount -a
-sudo chown -R $USER:$USER $MOUNT_POINT
 
-echo "📝 Creating /etc/rsyncd.conf..."
+# --- 👤 Create user ---
+if ! id "$USER" >/dev/null 2>&1; then
+    echo "👤 Створюю користувача $USER..."
+    sudo adduser --disabled-password --gecos "" "$USER"
+fi
+sudo chown -R "$USER:$USER" "$MOUNT_POINT"
+
+# --- ⚙️ Rsync daemon configuration ---
+echo "📝 Створюю /etc/rsyncd.conf..."
 sudo tee /etc/rsyncd.conf >/dev/null <<EOF
 uid = $USER
 gid = $USER
@@ -41,18 +94,25 @@ timeout = 300
    secrets file = /etc/rsyncd.secrets
 EOF
 
-echo "🔑 Creating /etc/rsyncd.secrets..."
+# --- 🔑 Secrets ---
+echo "🔑 Створюю /etc/rsyncd.secrets..."
 echo "$USER:$PASS" | sudo tee /etc/rsyncd.secrets >/dev/null
 sudo chmod 600 /etc/rsyncd.secrets
 sudo chown root:root /etc/rsyncd.secrets
 
-echo "🔄 Enabling rsync daemon..."
+# --- 🔄 Enable daemon ---
+echo "🚀 Встановлюю rsync..."
+sudo apt-get update -y && sudo apt-get install -y rsync
+
+echo "🔄 Запускаю rsync daemon..."
 sudo systemctl enable rsync
 sudo systemctl restart rsync
 
-echo "✅ Done!"
-echo "   - Rsync daemon is running on port 873"
-echo "   - Module name: backup"
-echo "   - Path: $BACKUP_DIR"
-echo "   - Username: $USER"
-echo "   - Password: $PASS"
+echo "✅ Все готово!"
+echo "---------------------------------------------"
+echo "Rsync daemon працює на порті 873"
+echo "Модуль: backup"
+echo "Шлях: $MOUNT_POINT"
+echo "Користувач: $USER"
+echo "Пароль: $PASS"
+echo "---------------------------------------------"
