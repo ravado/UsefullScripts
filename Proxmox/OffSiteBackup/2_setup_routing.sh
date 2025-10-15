@@ -50,32 +50,3 @@ sudo netfilter-persistent save
 echo "✅ NAT configuration complete."
 echo "🔍 Check active rules: sudo iptables -t nat -L -n -v"
 echo "🔍 Verify IP forwarding: sysctl net.ipv4.ip_forward"
-
-
-# Original
-
-# # If the output is 0, enable it by running:
-# echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
-
-# # To make it persistent across reboots, edit the sysctl.conf file
-# sudo nano /etc/sysctl.conf
-# # Uncomment or add the following line:
-# # net.ipv4.ip_forward=1
-# # Apply the change with:
-# sudo sysctl -p
-
-
-# # Add the iptables DNAT rule
-# sudo iptables -t nat -A PREROUTING -p tcp --dport 873 -j DNAT --to-destination 100.106.208.27:873
-
-# # 3. Handle hairpin NAT (optional, but recommended)
-# sudo iptables -t nat -A POSTROUTING -p tcp -d 100.106.208.27 --dport 873 -j MASQUERADE
-
-
-# # 4. Make iptables rules persistent
-
-# # Install the utility
-# sudo apt-get install iptables-persistent
-
-# # Save your current rules
-# sudo netfilter-persistent save

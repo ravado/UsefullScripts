@@ -38,6 +38,14 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/ma
 
 ---
 
+### 🛜 3.2. Setup Tailscale Routes *(optional)*
+Turns a router or Proxmox node into a Tailscale subnet router.
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/2_setup_routing.sh)"
+```
+
+---
+
 ### ☁️ 4. MinIO Alternative *(optional)*
 Deploys a MinIO S3-compatible server on the mounted disk for S3-style backups.
 ```bash
