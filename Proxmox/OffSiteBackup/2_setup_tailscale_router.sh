@@ -1,23 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LAN_SUBNET="192.168.91.0/24"   # заміни на свою підмережу
-
 echo "🚀 Updating system..."
 apt-get update -y && apt-get upgrade -y
+
+echo "📦 Installing curl..."
+apt-get install curl -y
 
 echo "📦 Installing Tailscale..."
 curl -fsSL https://tailscale.com/install.sh | sh
 
-echo "🛠️ Enabling service..."
-systemctl enable --now tailscaled
 
-echo "🔑 Bringing LXC into Tailnet as subnet router..."
-tailscale up \
-  --hostname=proxmox-router \
-  --advertise-routes=$LAN_SUBNET \
-  --accept-dns=false
+# Enable IP forwarding
+echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
 
-echo "✅ Done!"
-echo "👉 Now go to https://login.tailscale.com/admin/machines and Approve route: $LAN_SUBNET"
-echo "Check routes with: tailscale status"
+
+
+echo "🔑 Bringing LXC into Tailnet as a simple gateway client..."
+tailscale up --advertise-routes=192.168.91.0/24
+
+echo "✅ Tailscale client is now active!"
+echo "ℹ️ Check connection with: tailscale status"
+echo "🌐 Your LXC Tailnet IP:"
+tailscale ip -4
+
+# add to config lxc
+# lxc.cgroup2.devices.allow: c 10:200 rwm
+# lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
