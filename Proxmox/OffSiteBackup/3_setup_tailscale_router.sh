@@ -17,6 +17,7 @@ fi
 
 REMOTE_IP="100.106.208.27"
 RSYNC_PORT=873
+LXC_IP=$(hostname -I | awk '{print $1}')
 
 # ============================================
 # 📦 Install dependencies
@@ -29,7 +30,7 @@ echo "📦 Installing curl and iptables utilities..."
 $SUDO apt-get install -y curl iptables-persistent
 
 # ============================================
-# 🌀 Install and enable Tailscale
+# 🌀 Install Tailscale
 # ============================================
 
 echo "📦 Installing Tailscale..."
@@ -82,6 +83,7 @@ echo "✅ All set! This LXC now acts as a Tailscale gateway with NAT forwarding 
 echo "🔍 Check Tailscale status: tailscale status"
 echo "🔍 Check NAT rules: ${SUDO} iptables -t nat -L -n -v"
 echo "🔍 Verify IP forwarding: sysctl net.ipv4.ip_forward"
+echo "🔍 Verify that remote rsync is available from local NAS: nc -zv ${LXC_IP} 873"
 
 cat <<'NOTE'
 
