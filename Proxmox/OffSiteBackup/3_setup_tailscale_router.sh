@@ -15,7 +15,17 @@ else
   exit 1
 fi
 
-REMOTE_IP="100.106.208.27"
+# ============================================
+# 🧠 Prompt for remote Tailscale IP
+# ============================================
+
+read -e -p "🌐 Enter the remote device's Tailscale IP (must start with 100.): " -i "100." REMOTE_IP
+
+if [[ ! "$REMOTE_IP" =~ ^100\. ]]; then
+  echo "❌ Invalid IP. Tailscale IPv4 addresses always start with 100."
+  exit 1
+fi
+
 RSYNC_PORT=873
 LXC_IP=$(hostname -I | awk '{print $1}')
 

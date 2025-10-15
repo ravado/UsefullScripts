@@ -12,6 +12,11 @@ Before calling any of the commands you would need `curl`
 apt install curl -y
 ```
 
+## 🌍 SECTION 1 — Remote Backup Device (e.g., Raspberry Pi / Mini Node)
+
+These commands prepare your off-site backup node — a small device that stores your backups and joins your Tailscale network.
+
+
 ### 🧹 0. Prepare Disk
 
 Detects the USB SSD, offers to format it to ext4, mounts it under `/mnt/backupdisk`, and adds it to `/etc/fstab`.
@@ -41,6 +46,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/ma
 ```
 
 ---
+
+## 🏠 SECTION 2 — LAN Gateway (Proxmox LXC / Local Router)
+
+This LXC or lightweight VM acts as a Tailscale gateway — routing your NAS traffic to the remote Pi without installing Tailscale on the NAS itself.
 
 ### 🛜 3. Setup Tailscale Router *(optional)*
 
