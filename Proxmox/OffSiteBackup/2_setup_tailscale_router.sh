@@ -14,9 +14,6 @@ fi
 echo "🚀 Updating system..."
 $SUDO apt-get update -y && $SUDO apt-get upgrade -y
 
-echo "📦 Installing dependencies..."
-$SUDO apt-get install -y curl
-
 echo "📦 Installing Tailscale..."
 curl -fsSL https://tailscale.com/install.sh | $SUDO bash
 
