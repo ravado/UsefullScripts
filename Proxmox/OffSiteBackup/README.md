@@ -9,7 +9,7 @@ Build a **portable, low-power off-site backup node** in minutes — just copy & 
 ### 🧹 0. Prepare Disk
 Detects the USB SSD, offers to format it to ext4, mounts it under `/mnt/backupdisk`, and adds it to `/etc/fstab`.
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/0_setup_disc.sh | sudo bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/0_setup_disc.sh)"
 ```
 
 ---
@@ -17,7 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/
 ### 🔄 1. Setup Rsync Service
 Installs and configures `rsyncd`, asks for username & password, and enables the daemon on port 873.
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/1_setup_rsync_service.sh | sudo bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/1_setup_rsync_service.sh)"
 ```
 
 ---
@@ -25,7 +25,7 @@ curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/
 ### 🌐 2. Join Tailnet (Pi)
 Installs Tailscale, asks for hostname, and connects your Pi securely to your Tailnet.
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/1_setup_tailscale_pi.sh | sudo bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/1_setup_tailscale_pi.sh)"
 ```
 
 ---
@@ -33,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/
 ### 🛜 3. Setup Tailscale Router *(optional)*
 Turns a router or Proxmox node into a Tailscale subnet router.
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/2_setup_tailscale_router.sh | sudo bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/2_setup_tailscale_router.sh)"
 ```
 
 ---
@@ -41,7 +41,7 @@ curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/
 ### ☁️ 4. MinIO Alternative *(optional)*
 Deploys a MinIO S3-compatible server on the mounted disk for S3-style backups.
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/setup_minio_with_disk.sh | sudo bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/setup_minio_with_disk.sh)"
 ```
 
 ---
