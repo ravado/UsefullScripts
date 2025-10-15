@@ -1,88 +1,52 @@
-# 🛰️ Off-Site Backup Setup for Raspberry Pi / Mini Node
+# Photo Frame — Quick Setup
 
-Build a **portable, low-power off-site backup node** in minutes — just copy & run the one-liners below 🧑‍💻
+> Minimal steps to bring a new photoframe online with logging + migration scripts.
 
 ---
 
-## ⚙️ Quick Start — One-Liners
+## 1) Install Alloy (logs & metrics)
 
-### 🧹 0. Prepare Disk
-
-Detects the USB SSD, offers to format it to ext4, mounts it under `/mnt/backupdisk`, and adds it to `/etc/fstab`.
+One-liner (runs as root; auto-handles sudo if needed):
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/0_setup_disc.sh)"
+sudo apt update && sudo apt install -y curl
 ```
-
----
-
-### 🔄 1. Setup Rsync Service
-
-Installs and configures `rsyncd`, asks for username & password, and enables the daemon on port 873.
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/1_setup_rsync_service.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/logs-and-monitoring/install_alloy.sh)"
 ```
 
----
 
-### 🌐 2. Join Tailnet (Pi)
+## 2) Install/Run migration & helper scripts
 
-Installs Tailscale, asks for hostname, and connects your Pi securely to your Tailnet.
+Bootstraps resizer/sync/backup helpers and any prerequisites:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/1_setup_tailscale_pi.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/migration/install_all.sh)"
 ```
 
----
+## Next Steps
 
-### 🛜 3. Setup Tailscale Router *(optional)*
+1️⃣ **Edit the `backup.env` file**  
+Update it to match your SMB and PicFrame configuration.
 
-Turns a router or Proxmox node into a Tailscale subnet router.
+2️⃣ **Run the scripts manually in the following order as needed:**
+```bash
+./0_backup_setup.sh <prefix>
+./1_install_picframe.sh
+./2_restore_samba.sh
+./3_restore_picframe_backup.sh <prefix> <latest|filename>
+./4_sync_photos.sh
+```
+
+### Example:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/2_setup_tailscale_router.sh)"
+./0_backup_setup.sh home
+./3_restore_picframe_backup.sh home latest
 ```
 
----
+## Links
 
-### ☁️ 4. MinIO Alternative *(optional)*
-
-Deploys a MinIO S3-compatible server on the mounted disk for S3-style backups.
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/Proxmox/OffSiteBackup/setup_minio_with_disk.sh)"
-```
-
----
-
-## 🧩 Typical Flow
-
-1. 🧹 **Prepare disk** → `0_setup_disc.sh`
-2. 🔄 **Install rsync server** → `1_setup_rsync_service.sh`
-3. 🌐 **Join Tailnet** → `1_setup_tailscale_pi.sh`
-4. 🛜 *(optional)* expose LAN → `2_setup_tailscale_router.sh`
-5. ☁️ *(optional)* run MinIO → `setup_minio_with_disk.sh`
-
-After that your node is reachable in Tailnet on port `873`:
-
-```bash
-rsync -av /data/ backup@100.x.x.x::backup
-```
-
----
-
-## 🧠 Notes
-
-- 🧯 Scripts block formatting of `mmcblk0` (the system SD card).
-- ⚡ Raspberry Pi Zero 2 W + SSD consumes ≈ 3–4 W 24/7.
-- 🔐 All traffic via Tailscale is end-to-end encrypted.
-- 🔁 Each script can be safely re-run — they’re idempotent.
-
----
-
-## 🧡 Author
-
-Maintained by [@ravado](https://github.com/ravado)\
-Part of the 📦 [UsefullScripts → Proxmox → OffSiteBackup](https://github.com/ravado/UsefullScripts/tree/main/Proxmox/OffSiteBackup)
-
+- [Logs & Monitoring — README](logs-and-monitoring/README.md)  
+- [Migration & Helpers — README](migration/README.md)  
