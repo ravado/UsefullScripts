@@ -30,7 +30,10 @@ read -rp "Хочеш відформатувати диск у ext4 (стерти
 if [[ "${confirm,,}" == "yes" ]]; then
     echo "🧹 Форматую $DISK у ext4..."
     sudo umount -f "${DISK}"* || true
-    sudo mkfs.ext4 -F -L BACKUPDISK "$DISK"
+    sudo parted -s "$DISK" mklabel gpt mkpart primary ext4 0% 100%
+    sudo mkfs.ext4 -F -L BACKUPDISK "${DISK}1"
+    sleep 2
+    DISK="${DISK}1"
     echo "✅ Форматування завершено."
 else
     echo "🚫 Форматування пропущено."
@@ -44,18 +47,13 @@ if [[ -z "$UUID" ]]; then
 fi
 echo "📎 UUID диску: $UUID"
 
-# --- 📂 Монтування ---
 sudo mkdir -p "$MOUNT_POINT"
-if ! grep -q "$UUID" /etc/fstab; then
-    echo "📄 Додаю у /etc/fstab..."
-    echo "UUID=$UUID  $MOUNT_POINT  ext4  defaults,noatime  0  2" | sudo tee -a /etc/fstab
-fi
+sudo sed -i "/$UUID/d" /etc/fstab
+echo "UUID=$UUID  $MOUNT_POINT  ext4  defaults,noatime,nofail 0 0" | sudo tee -a /etc/fstab
 
 echo "🔄 Монтуємо диск..."
 sudo mount -a
 
-# --- 🔧 Доступ ---
-sudo chown -R root:root "$MOUNT_POINT"
 sudo chmod 755 "$MOUNT_POINT"
 
 echo "✅ Готово!"

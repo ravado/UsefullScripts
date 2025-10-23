@@ -5,24 +5,24 @@
 
 set -euo pipefail
 
-# === DevOps-safe privilege detection ===
+# === Privilege detection ===
 if command -v sudo >/dev/null 2>&1 && [ "$(id -u)" -ne 0 ]; then
   SUDO="sudo"
 elif [ "$(id -u)" -eq 0 ]; then
   SUDO=""
 else
-  echo "❌ This script must be run as root or with sudo privileges."
+  echo "❌ Цей скрипт потрібно запускати з правами root або через sudo."
   exit 1
 fi
 
 # ============================================
-# 🧠 Prompt for remote Tailscale IP
+# 🧠 Введення IP віддаленого пристрою
 # ============================================
 
-read -e -p "🌐 Enter the remote device's Tailscale IP (must start with 100.): " -i "100." REMOTE_IP
+read -e -p "🌐 Введи Tailscale IP віддаленого пристрою (починається з 100.): " -i "100." REMOTE_IP
 
 if [[ ! "$REMOTE_IP" =~ ^100\. ]]; then
-  echo "❌ Invalid IP. Tailscale IPv4 addresses always start with 100."
+  echo "❌ Некоректна IP-адреса. Tailscale IPv4 завжди починаються з 100."
   exit 1
 fi
 
@@ -30,75 +30,87 @@ RSYNC_PORT=873
 LXC_IP=$(hostname -I | awk '{print $1}')
 
 # ============================================
-# 📦 Install dependencies
+# 📦 Залежності
 # ============================================
 
-echo "🚀 Updating system..."
+echo "🚀 Оновлюю систему..."
 $SUDO apt-get update -y && $SUDO apt-get upgrade -y
 
-echo "📦 Installing curl and iptables utilities..."
-$SUDO apt-get install -y curl iptables-persistent
+echo "📦 Встановлюю curl і iptables-persistent..."
+$SUDO apt-get install -y curl iptables-persistent net-tools
 
 # ============================================
-# 🌀 Install Tailscale
+# 🌀 Встановлення Tailscale
 # ============================================
 
-echo "📦 Installing Tailscale..."
-curl -fsSL https://tailscale.com/install.sh | $SUDO bash
+if ! command -v tailscale >/dev/null 2>&1; then
+  echo "📦 Встановлюю Tailscale..."
+  curl -fsSL https://tailscale.com/install.sh | $SUDO bash
+else
+  echo "✅ Tailscale вже встановлено."
+fi
 
 # ============================================
-# 🛠️ Enable IP forwarding
+# 🛠️ Увімкнення IP forwarding
 # ============================================
 
-echo "🛠️ Enabling IP forwarding..."
+echo "🛠️ Вмикаю IP forwarding..."
 $SUDO tee /etc/sysctl.d/99-tailscale.conf >/dev/null <<'EOF'
 net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1
 EOF
 
-$SUDO sysctl -p /etc/sysctl.d/99-tailscale.conf >/dev/null
+$SUDO sysctl --system >/dev/null
 
 # ============================================
-# 🔗 Connect to Tailnet
+# 🔗 Підключення до Tailnet
 # ============================================
 
-echo "🔑 Bringing this node into Tailnet..."
-$SUDO tailscale up
+if ! tailscale status >/dev/null 2>&1; then
+  echo "🔑 Підключення цього вузла до Tailnet..."
+  echo "💡 Відкрий посилання, що з’явиться нижче, у браузері для авторизації."
+  $SUDO tailscale up
+else
+  echo "✅ Вузол уже підключений до Tailnet."
+fi
 
-echo "🌍 Your Tailscale IPv4 address:"
+echo "🌍 Поточна Tailscale IP-адреса:"
 tailscale ip -4
 
 # ============================================
-# 🧱 Configure NAT rules (for rsync)
+# 🧱 Налаштування NAT для rsync
 # ============================================
 
-echo "🧹 Cleaning old NAT rules related to rsync (${RSYNC_PORT})..."
+echo "🧹 Очищаю старі NAT-правила для порту ${RSYNC_PORT}..."
 $SUDO iptables -t nat -D PREROUTING -p tcp --dport ${RSYNC_PORT} -j DNAT --to-destination ${REMOTE_IP}:${RSYNC_PORT} 2>/dev/null || true
 $SUDO iptables -t nat -D POSTROUTING -p tcp -d ${REMOTE_IP} --dport ${RSYNC_PORT} -j MASQUERADE 2>/dev/null || true
 
-echo "📡 Adding new DNAT rule (redirect port ${RSYNC_PORT} → ${REMOTE_IP})..."
+echo "📡 Додаю DNAT правило (перенаправлення ${RSYNC_PORT} → ${REMOTE_IP})..."
 $SUDO iptables -t nat -A PREROUTING -p tcp --dport ${RSYNC_PORT} -j DNAT --to-destination ${REMOTE_IP}:${RSYNC_PORT}
 
-echo "🔁 Adding MASQUERADE rule (for return traffic / hairpin NAT)..."
+echo "🔁 Додаю MASQUERADE правило (зворотний трафік)..."
 $SUDO iptables -t nat -A POSTROUTING -p tcp -d ${REMOTE_IP} --dport ${RSYNC_PORT} -j MASQUERADE
 
-echo "💾 Saving iptables configuration..."
-$SUDO netfilter-persistent save
+echo "💾 Зберігаю iptables конфігурацію..."
+$SUDO netfilter-persistent save >/dev/null
 
 # ============================================
-# ✅ Done
+# ✅ Підсумок
 # ============================================
 
-echo "✅ All set! This LXC now acts as a Tailscale gateway with NAT forwarding for rsync."
-echo "🔍 Check Tailscale status: tailscale status"
-echo "🔍 Check NAT rules: ${SUDO} iptables -t nat -L -n -v"
-echo "🔍 Verify IP forwarding: sysctl net.ipv4.ip_forward"
-echo "🔍 Verify that remote rsync is available from local NAS: nc -zv ${LXC_IP} 873"
+echo
+echo "✅ Готово! Цей LXC тепер працює як Tailscale шлюз із NAT-проксі для rsync."
+echo "----------------------------------------------"
+echo "🔍 Перевірити статус Tailscale:   tailscale status"
+echo "🔍 Перевірити NAT правила:        ${SUDO} iptables -t nat -L -n -v"
+echo "🔍 Перевірити IP forwarding:      sysctl net.ipv4.ip_forward"
+echo "🔍 Перевірити доступність rsync:  nc -zv ${LXC_IP} 873"
+echo "----------------------------------------------"
 
 cat <<'NOTE'
 
-📋 Reminder for Proxmox LXC config:
-Add the following lines to /etc/pve/lxc/<ID>.conf if not already present:
+📋 Нагадування для LXC у Proxmox:
+Додай у /etc/pve/lxc/<ID>.conf (якщо ще немає):
 
   lxc.cgroup2.devices.allow: c 10:200 rwm
   lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file

@@ -4,8 +4,9 @@ set -euo pipefail
 echo "🌐 === Встановлення та підключення Tailscale ==="
 
 # --- 🧠 Hostname input ---
-read -rp "📛 Введи hostname для цього пристрою [pi-backup]: " HOSTNAME
-HOSTNAME=${HOSTNAME:-pi-backup}
+CURRENT_HOST=$(hostname)
+read -rp "📛 Введи hostname для цього пристрою [$CURRENT_HOST]: " HOSTNAME
+HOSTNAME=${HOSTNAME:-$CURRENT_HOST}
 
 # --- 🔐 SSH toggle ---
 read -rp "🔑 Дозволити SSH через Tailscale? (yes/NO): " enable_ssh
@@ -33,19 +34,15 @@ else
     echo "✅ Tailscale вже встановлено."
 fi
 
-# --- 🛠️ Enable service ---
-echo "🛠️ Вмикаю tailscaled..."
-sudo systemctl enable --now tailscaled
-
 # --- 🔑 Connect to Tailnet ---
 echo "🔑 Підключення до Tailnet..."
-echo "💡 Зараз відкриється посилання для авторизації. Відкрий його в браузері та підтвердь вхід."
+echo "💡 Відкрий посилання в браузері для авторизації та підтвердження входу."
 sleep 2
 sudo tailscale up --hostname="$HOSTNAME" $SSH_FLAG
 
 # --- 📋 Summary ---
-echo "✅ Пристрій додано до Tailnet!"
 TAIL_IP=$(tailscale ip -4 2>/dev/null || true)
+echo "✅ Пристрій додано до Tailnet!"
 echo "----------------------------------------------"
 echo "   Hostname: $HOSTNAME"
 echo "   Tailnet IP: ${TAIL_IP:-невідомо (перевір: tailscale ip -4)}"

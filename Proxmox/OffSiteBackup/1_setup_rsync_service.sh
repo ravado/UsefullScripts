@@ -3,8 +3,9 @@ set -euo pipefail
 
 echo "🔧 === Встановлення та налаштування rsyncd ==="
 
-read -rp "👤 Введи ім'я користувача для rsync [backup]: " USER
-USER=${USER:-backup}
+# --- 🧩 Збір базових даних ---
+read -rp "👤 Введи ім'я користувача для rsync [backuper]: " USER
+USER=${USER:-backuper}
 
 read -rsp "🔑 Введи пароль для користувача $USER (обов’язково): " PASS
 echo
@@ -13,28 +14,32 @@ if [[ -z "$PASS" ]]; then
     exit 1
 fi
 
-read -rp "📂 Вкажи шлях до каталогу для бекапів [/mnt/backupdisk]: " MOUNT_POINT
-MOUNT_POINT=${MOUNT_POINT:-/mnt/backupdisk}
+read -rp "📂 Вкажи шлях до каталогу для бекапів [/mnt/backups]: " MOUNT_POINT
+MOUNT_POINT=${MOUNT_POINT:-/mnt/backups}
 
 # --- 👤 Створюємо користувача ---
 if ! id "$USER" >/dev/null 2>&1; then
     echo "👤 Створюю користувача $USER..."
     sudo adduser --disabled-password --gecos "" "$USER"
+else
+    echo "✅ Користувач $USER вже існує."
 fi
-sudo chown -R "$USER:$USER" "$MOUNT_POINT"
 
-# --- 🚀 Встановлення rsync ---
+# --- 📦 Встановлення rsync ---
 echo "📦 Встановлюю rsync..."
 sudo apt-get update -y && sudo apt-get install -y rsync
 
-# --- ⚙️ Конфігурація rsyncd ---
+# --- ⚙️ Підготовка каталогу ---
+sudo mkdir -p "$MOUNT_POINT"
+sudo chown -R "$USER:$USER" "$MOUNT_POINT"
+
+# --- 🧾 Конфігурація rsyncd ---
 echo "📝 Створюю /etc/rsyncd.conf..."
 sudo tee /etc/rsyncd.conf >/dev/null <<EOF
 uid = $USER
 gid = $USER
 use chroot = no
 max connections = 2
-log file = /var/log/rsyncd.log
 timeout = 300
 
 [backup]
@@ -51,13 +56,21 @@ echo "$USER:$PASS" | sudo tee /etc/rsyncd.secrets >/dev/null
 sudo chmod 600 /etc/rsyncd.secrets
 sudo chown root:root /etc/rsyncd.secrets
 
-# --- 🔄 Запуск демона ---
-echo "🚀 Увімкнення rsync..."
+# --- 🚀 Запуск і автозапуск ---
+echo "🚀 Увімкнення rsync як сервісу..."
 sudo systemctl enable rsync
 sudo systemctl restart rsync
 
-echo "✅ Rsyncd готовий!"
-echo "   - Порт: 873"
-echo "   - Модуль: backup"
-echo "   - Шлях: $MOUNT_POINT"
-echo "   - Користувач: $USER"
+# --- 🧪 Підсумок ---
+echo "✅ Rsyncd налаштований і запущений!"
+echo "----------------------------------------------"
+echo "   🔌 Порт: 873"
+echo "   📦 Модуль: [backup]"
+echo "   📂 Шлях: $MOUNT_POINT"
+echo "   👤 Користувач: $USER"
+echo "----------------------------------------------"
+echo "🧪 Для перевірки з іншого пристрою виконай:"
+echo "   rsync ${USER}@<IP_адреса>::backup"
+echo
+echo "📜 Статус сервісу можна перевірити командою:"
+echo "   sudo systemctl status rsync"
