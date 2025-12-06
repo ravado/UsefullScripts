@@ -1,9 +1,10 @@
 #!/bin/bash
 #===============================================================================
 # Script: install_and_configure_docker_vm.sh
-# Description: Installs Docker, Docker Compose, and Portainer on a Debian/Ubuntu VM
+# Description: Installs Docker, Docker Compose, Portainer, and Proxmox tools on a Debian/Ubuntu VM
 # Usage: Run as root or with sudo: sudo bash install_and_configure_docker_vm.sh
 # Tested on: Debian 11/12, Ubuntu 22.04/24.04
+# Enhanced with: NFS support, QEMU guest agent, Docker testing, Watchtower option
 #===============================================================================
 
 set -e  # Exit on any error
@@ -72,6 +73,24 @@ install_prerequisites() {
         lsb-release \
         software-properties-common
     log_success "Prerequisites installed"
+}
+
+# Install NFS client for network storage
+install_nfs_client() {
+    log_info "Installing NFS client for network storage..."
+    apt-get install -y nfs-common
+    log_success "NFS client installed"
+    log_info "You can now mount NFS shares with: mount -t nfs <nfs-server>:/path /mnt/point"
+}
+
+# Install QEMU guest agent for better Proxmox integration
+install_qemu_agent() {
+    log_info "Installing QEMU guest agent for Proxmox integration..."
+    apt-get install -y qemu-guest-agent
+    systemctl enable qemu-guest-agent
+    systemctl start qemu-guest-agent
+    log_success "QEMU guest agent installed and started"
+    log_info "This enables better VM management from Proxmox (shutdown, snapshots, IP detection)"
 }
 
 # Install Docker
@@ -150,16 +169,14 @@ install_docker_compose() {
     fi
 }
 
-# Create Docker network for Portainer
-create_docker_network() {
-    log_info "Creating Docker network for Portainer..."
-    
-    # Create network if it doesn't exist
-    if ! docker network ls | grep -q "portainer_network"; then
-        docker network create portainer_network
-        log_success "Docker network 'portainer_network' created"
+# Test Docker installation
+test_docker() {
+    log_info "Testing Docker installation..."
+    if docker run --rm hello-world > /dev/null 2>&1; then
+        log_success "Docker test passed - hello-world container ran successfully"
     else
-        log_warn "Docker network 'portainer_network' already exists"
+        log_error "Docker test failed"
+        exit 1
     fi
 }
 
@@ -194,13 +211,45 @@ install_portainer() {
     fi
 }
 
+# Install Watchtower for automatic updates (optional)
+install_watchtower() {
+    echo ""
+    log_info "Watchtower can automatically update your Docker containers"
+    read -p "Would you like to install Watchtower for automatic container updates? (y/n): " -n 1 -r
+    echo ""
+    
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Installing Watchtower..."
+        
+        # Stop and remove existing Watchtower container if exists
+        docker stop watchtower 2>/dev/null || true
+        docker rm watchtower 2>/dev/null || true
+        
+        docker run -d \
+            --name watchtower \
+            --restart=always \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            containrrr/watchtower \
+            --cleanup \
+            --interval 86400
+        
+        if docker ps | grep -q watchtower; then
+            log_success "Watchtower installed - will check for updates daily"
+        else
+            log_warn "Watchtower installation failed, continuing anyway..."
+        fi
+    else
+        log_info "Skipping Watchtower installation"
+    fi
+}
+
 # Add current user to docker group (optional)
 add_user_to_docker_group() {
     if [ -n "$SUDO_USER" ]; then
         log_info "Adding user '$SUDO_USER' to docker group..."
         usermod -aG docker "$SUDO_USER"
         log_success "User '$SUDO_USER' added to docker group"
-        log_warn "Please log out and log back in for group changes to take effect"
+        log_warn "IMPORTANT: User must log out and log back in for group changes to take effect"
     fi
 }
 
@@ -225,32 +274,54 @@ print_summary() {
     echo -e "${GREEN}Installation Complete!${NC}"
     echo "==============================================================================="
     echo ""
-    echo "Docker version:"
-    docker --version
+    echo "Installed Components:"
+    echo "  ✓ Docker: $(docker --version | cut -d' ' -f3 | tr -d ',')"
+    echo "  ✓ Docker Compose: $(docker compose version | cut -d' ' -f4)"
+    echo "  ✓ Portainer: Running on ports 9443 (HTTPS) and 8000 (Edge Agent)"
+    echo "  ✓ NFS Client: Ready for network storage"
+    echo "  ✓ QEMU Guest Agent: Enabled for Proxmox integration"
+    if docker ps | grep -q watchtower; then
+        echo "  ✓ Watchtower: Automatic updates enabled (daily check)"
+    fi
     echo ""
-    echo "Docker Compose version:"
-    docker compose version
+    echo "==============================================================================="
+    echo "Access Portainer:"
+    echo "==============================================================================="
+    echo -e "  ${BLUE}HTTPS:${NC} https://$(hostname -I | awk '{print $1}'):9443"
     echo ""
-    echo "Portainer is running on:"
-    echo -e "  ${BLUE}HTTPS:${NC} https://<YOUR_VM_IP>:9443"
+    echo "  Note: You'll see a security warning because Portainer uses a self-signed"
+    echo "        certificate. This is normal - proceed to the site and create your"
+    echo "        admin account on first login."
     echo ""
-    echo "To get your VM's IP address, run:"
-    echo "  ip addr show | grep 'inet ' | grep -v '127.0.0.1'"
+    echo "==============================================================================="
+    echo "Important Notes:"
+    echo "==============================================================================="
+    echo "  • Use 'docker compose' (with space) not 'docker-compose' (with hyphen)"
+    echo "  • If you were added to the docker group, LOG OUT and LOG BACK IN"
+    echo "  • NFS mounts: mount -t nfs <server>:/path /mnt/point"
+    echo "  • Add to /etc/fstab for persistent NFS mounts"
+    echo ""
+    echo "==============================================================================="
+    echo "Useful Docker Commands:"
+    echo "==============================================================================="
+    echo "  docker ps                      - List running containers"
+    echo "  docker ps -a                   - List all containers"
+    echo "  docker images                  - List downloaded images"
+    echo "  docker compose up -d           - Start services (from compose file)"
+    echo "  docker compose down            - Stop services"
+    echo "  docker compose pull            - Update images"
+    echo "  docker logs <container>        - View container logs"
+    echo "  docker logs -f <container>     - Follow container logs"
+    echo "  docker exec -it <container> sh - Enter container shell"
     echo ""
     echo "==============================================================================="
     echo "Next Steps:"
     echo "==============================================================================="
-    echo "1. Access Portainer at https://<YOUR_VM_IP>:9443"
-    echo "2. Create your admin user on first login"
-    echo "3. Start deploying containers!"
+    echo "  1. Access Portainer and create your admin account"
+    echo "  2. Set up your NFS mounts if using network storage"
+    echo "  3. Start deploying your containers (BookLore, etc.)"
+    echo "  4. Consider setting up a reverse proxy (Traefik/Nginx Proxy Manager)"
     echo ""
-    echo "Useful Docker commands:"
-    echo "  docker ps                    - List running containers"
-    echo "  docker ps -a                 - List all containers"
-    echo "  docker images                - List images"
-    echo "  docker compose up -d         - Start services from docker-compose.yml"
-    echo "  docker compose down          - Stop services"
-    echo "  docker logs <container>      - View container logs"
     echo "==============================================================================="
 }
 
@@ -259,6 +330,7 @@ main() {
     echo ""
     echo "==============================================================================="
     echo "Docker, Docker Compose & Portainer Installation Script"
+    echo "Enhanced for Proxmox VMs with NFS and QEMU Guest Agent Support"
     echo "==============================================================================="
     echo ""
     
@@ -266,13 +338,20 @@ main() {
     detect_os
     update_system
     install_prerequisites
+    install_nfs_client
+    install_qemu_agent
     install_docker
     install_docker_compose
-    create_docker_network
+    test_docker
     install_portainer
+    install_watchtower
     add_user_to_docker_group
     # configure_firewall  # Uncomment if you want to configure firewall
     print_summary
+    
+    echo ""
+    log_success "Setup complete! Enjoy your Docker environment!"
+    echo ""
 }
 
 # Run main function
