@@ -5,6 +5,7 @@
 # Usage: Run as root or with sudo: sudo bash install_and_configure_docker_vm.sh
 # Tested on: Debian 11/12, Ubuntu 22.04/24.04
 # Enhanced with: NFS support, QEMU guest agent, Docker testing, Watchtower option
+# Directory structure: /opt/docker/<app>/ with compose files alongside data
 #===============================================================================
 
 set -e  # Exit on any error
@@ -15,6 +16,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Configuration
+DOCKER_ROOT="/opt/docker"
 
 # Logging functions
 log_info() {
@@ -180,26 +184,51 @@ test_docker() {
     fi
 }
 
-# Install Portainer
-install_portainer() {
-    log_info "Installing Portainer..."
+# Create Docker directory structure
+create_docker_structure() {
+    log_info "Creating Docker directory structure at $DOCKER_ROOT..."
     
-    # Create volume for Portainer data
-    docker volume create portainer_data
+    mkdir -p "$DOCKER_ROOT"
+    
+    log_success "Docker directory structure created at $DOCKER_ROOT"
+    log_info "All containers will be organized under this directory"
+}
+
+# Install Portainer using bind mount
+install_portainer() {
+    log_info "Installing Portainer with bind mount structure..."
+    
+    # Create Portainer directory structure
+    mkdir -p "$DOCKER_ROOT/portainer/data"
     
     # Stop and remove existing Portainer container if exists
     docker stop portainer 2>/dev/null || true
     docker rm portainer 2>/dev/null || true
     
-    # Run Portainer container
-    docker run -d \
-        -p 8000:8000 \
-        -p 9443:9443 \
-        --name portainer \
-        --restart=always \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        -v portainer_data:/data \
-        portainer/portainer-ce:latest
+    # Create docker-compose.yml for Portainer
+    cat > "$DOCKER_ROOT/portainer/docker-compose.yml" <<'EOF'
+version: '3.8'
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "8000:8000"
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
+    environment:
+      - TZ=Europe/Kiev
+EOF
+    
+    log_success "Created docker-compose.yml at $DOCKER_ROOT/portainer/"
+    
+    # Start Portainer using docker-compose
+    cd "$DOCKER_ROOT/portainer"
+    docker compose up -d
     
     # Verify Portainer is running
     sleep 5
@@ -221,20 +250,38 @@ install_watchtower() {
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         log_info "Installing Watchtower..."
         
+        # Create Watchtower directory structure
+        mkdir -p "$DOCKER_ROOT/watchtower"
+        
         # Stop and remove existing Watchtower container if exists
         docker stop watchtower 2>/dev/null || true
         docker rm watchtower 2>/dev/null || true
         
-        docker run -d \
-            --name watchtower \
-            --restart=always \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            containrrr/watchtower \
-            --cleanup \
-            --interval 86400
+        # Create docker-compose.yml for Watchtower
+        cat > "$DOCKER_ROOT/watchtower/docker-compose.yml" <<'EOF'
+version: '3.8'
+
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=0 0 4 * * *  # 4 AM daily
+      - TZ=Europe/Kiev
+EOF
+        
+        log_success "Created docker-compose.yml at $DOCKER_ROOT/watchtower/"
+        
+        # Start Watchtower using docker-compose
+        cd "$DOCKER_ROOT/watchtower"
+        docker compose up -d
         
         if docker ps | grep -q watchtower; then
-            log_success "Watchtower installed - will check for updates daily"
+            log_success "Watchtower installed - will check for updates daily at 4 AM"
         else
             log_warn "Watchtower installation failed, continuing anyway..."
         fi
@@ -253,6 +300,87 @@ add_user_to_docker_group() {
     fi
 }
 
+# Create README for Docker structure
+create_readme() {
+    log_info "Creating README file..."
+    
+    cat > "$DOCKER_ROOT/README.md" <<'EOF'
+# Docker Container Organization
+
+This directory contains all Docker containers organized in a structured way.
+
+## Structure
+
+```
+/opt/docker/
+├── <app-name>/
+│   ├── docker-compose.yml    # Compose file for the app
+│   ├── .env                  # Environment variables (optional)
+│   ├── data/                 # Application data
+│   ├── config/               # Configuration files
+│   └── <other-folders>/      # App-specific directories
+```
+
+## Usage
+
+### Starting a container
+```bash
+cd /opt/docker/<app-name>
+docker compose up -d
+```
+
+### Stopping a container
+```bash
+cd /opt/docker/<app-name>
+docker compose down
+```
+
+### Viewing logs
+```bash
+cd /opt/docker/<app-name>
+docker compose logs -f
+```
+
+### Updating a container
+```bash
+cd /opt/docker/<app-name>
+docker compose pull
+docker compose up -d
+```
+
+### Restarting a container
+```bash
+cd /opt/docker/<app-name>
+docker compose restart
+```
+
+## Installed Apps
+
+- **portainer/** - Container management UI (https://localhost:9443)
+- **watchtower/** - Automatic container updates (if installed)
+
+## Adding New Apps
+
+1. Create directory: `mkdir -p /opt/docker/<app-name>`
+2. Create docker-compose.yml in that directory
+3. Start the app: `cd /opt/docker/<app-name> && docker compose up -d`
+
+## Backups
+
+To backup an app, simply backup its directory:
+```bash
+tar -czf ~/backups/<app-name>-$(date +%Y%m%d).tar.gz /opt/docker/<app-name>
+```
+
+To backup everything:
+```bash
+tar -czf ~/backups/docker-all-$(date +%Y%m%d).tar.gz /opt/docker
+```
+EOF
+    
+    log_success "Created README.md at $DOCKER_ROOT/README.md"
+}
+
 # Configure firewall (optional - uncomment if needed)
 # configure_firewall() {
 #     log_info "Configuring firewall..."
@@ -269,6 +397,8 @@ add_user_to_docker_group() {
 
 # Print summary
 print_summary() {
+    local PORTAINER_IP=$(hostname -I | awk '{print $1}')
+    
     echo ""
     echo "==============================================================================="
     echo -e "${GREEN}Installation Complete!${NC}"
@@ -281,13 +411,24 @@ print_summary() {
     echo "  ✓ NFS Client: Ready for network storage"
     echo "  ✓ QEMU Guest Agent: Enabled for Proxmox integration"
     if docker ps | grep -q watchtower; then
-        echo "  ✓ Watchtower: Automatic updates enabled (daily check)"
+        echo "  ✓ Watchtower: Automatic updates enabled (daily at 4 AM)"
     fi
+    echo ""
+    echo "Directory Structure:"
+    echo "  $DOCKER_ROOT/"
+    echo "  ├── portainer/"
+    echo "  │   ├── docker-compose.yml"
+    echo "  │   └── data/"
+    if docker ps | grep -q watchtower; then
+        echo "  ├── watchtower/"
+        echo "  │   └── docker-compose.yml"
+    fi
+    echo "  └── README.md"
     echo ""
     echo "==============================================================================="
     echo "Access Portainer:"
     echo "==============================================================================="
-    echo -e "  ${BLUE}HTTPS:${NC} https://$(hostname -I | awk '{print $1}'):9443"
+    echo -e "  ${BLUE}HTTPS:${NC} https://${PORTAINER_IP}:9443"
     echo ""
     echo "  Note: You'll see a security warning because Portainer uses a self-signed"
     echo "        certificate. This is normal - proceed to the site and create your"
@@ -296,31 +437,38 @@ print_summary() {
     echo "==============================================================================="
     echo "Important Notes:"
     echo "==============================================================================="
+    echo "  • All containers are organized under: $DOCKER_ROOT/"
+    echo "  • Each app has its own folder with docker-compose.yml"
     echo "  • Use 'docker compose' (with space) not 'docker-compose' (with hyphen)"
-    echo "  • If you were added to the docker group, LOG OUT and LOG BACK IN"
-    echo "  • NFS mounts: mount -t nfs <server>:/path /mnt/point"
-    echo "  • Add to /etc/fstab for persistent NFS mounts"
+    echo "  • If you were added to docker group, LOG OUT and LOG BACK IN"
+    echo "  • Read $DOCKER_ROOT/README.md for usage examples"
     echo ""
     echo "==============================================================================="
-    echo "Useful Docker Commands:"
+    echo "Common Commands:"
     echo "==============================================================================="
+    echo "  cd /opt/docker/<app>           - Navigate to app directory"
+    echo "  docker compose up -d           - Start app"
+    echo "  docker compose down            - Stop app"
+    echo "  docker compose pull            - Update images"
+    echo "  docker compose logs -f         - View logs"
+    echo "  docker compose restart         - Restart app"
+    echo ""
     echo "  docker ps                      - List running containers"
     echo "  docker ps -a                   - List all containers"
-    echo "  docker images                  - List downloaded images"
-    echo "  docker compose up -d           - Start services (from compose file)"
-    echo "  docker compose down            - Stop services"
-    echo "  docker compose pull            - Update images"
-    echo "  docker logs <container>        - View container logs"
-    echo "  docker logs -f <container>     - Follow container logs"
-    echo "  docker exec -it <container> sh - Enter container shell"
+    echo "  ls -la $DOCKER_ROOT/           - List all apps"
     echo ""
     echo "==============================================================================="
     echo "Next Steps:"
     echo "==============================================================================="
     echo "  1. Access Portainer and create your admin account"
     echo "  2. Set up your NFS mounts if using network storage"
-    echo "  3. Start deploying your containers (BookLore, etc.)"
-    echo "  4. Consider setting up a reverse proxy (Traefik/Nginx Proxy Manager)"
+    echo "  3. Create directories for your apps under /opt/docker/"
+    echo "  4. Deploy your containers with docker-compose.yml files"
+    echo ""
+    echo "Example - Adding a new app:"
+    echo "  mkdir -p /opt/docker/myapp"
+    echo "  nano /opt/docker/myapp/docker-compose.yml"
+    echo "  cd /opt/docker/myapp && docker compose up -d"
     echo ""
     echo "==============================================================================="
 }
@@ -331,6 +479,7 @@ main() {
     echo "==============================================================================="
     echo "Docker, Docker Compose & Portainer Installation Script"
     echo "Enhanced for Proxmox VMs with NFS and QEMU Guest Agent Support"
+    echo "Directory Structure: /opt/docker/<app>/"
     echo "==============================================================================="
     echo ""
     
@@ -343,14 +492,16 @@ main() {
     install_docker
     install_docker_compose
     test_docker
+    create_docker_structure
     install_portainer
     install_watchtower
     add_user_to_docker_group
+    create_readme
     # configure_firewall  # Uncomment if you want to configure firewall
     print_summary
     
     echo ""
-    log_success "Setup complete! Enjoy your Docker environment!"
+    log_success "Setup complete! Your Docker environment is ready at $DOCKER_ROOT"
     echo ""
 }
 
