@@ -1,483 +1,259 @@
-# Proxmox Setup Guide - RTX 5060 Ti with Power Management
+# Proxmox GPU Passthrough with Power Management
 
-## 1. Apply Post Install Script
+Automated setup for NVIDIA GPU passthrough with dynamic power management on Proxmox VE. This enables your GPU to consume only 5-15W when the VM is off (instead of 40-50W), saving ~$30-35/year in electricity costs.
+
+## Quick Start
+
+### 1. Prerequisites
+
+- Proxmox VE installed
+- NVIDIA GPU (RTX 30/40/50 series or GTX 10+ series)
+- VT-d (Intel) or AMD-Vi (AMD) enabled in BIOS
+- Root access to Proxmox host
+
+### 2. Download Setup Files
+
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/post-pve-install.sh)"
+# Download to your Proxmox host
+wget https://your-repo/setup-gpu-passthrough.sh
+wget https://your-repo/.env.example
+
+chmod +x setup-gpu-passthrough.sh
 ```
 
-## 2. Update System
-```bash
-apt update && apt full-upgrade -y
-```
+### 3. Configure Your Environment
 
-## 3. Attach Drives
-Add .env
 ```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit with your GPU details
 nano .env
-# (copy from Proxmox/PCIPassthrough/.env)
 ```
 
-Invoke 
+**Required Configuration:**
+
 ```bash
-./Proxmox/PCIPassthrough/0_add_required_storage_locations.sh
-```
-
-## 4. Restore Win11 VM from PBS
-
-## 5. Attach Drives for Win VM
-```bash
-qm set 200 -sata0 /dev/disk/by-id/ata-Samsung_SSD_860_EVO_1TB_S5B3NY0M902681A
-qm set 200 -sata1 /dev/disk/by-id/ata-WDC_WD20EFRX-68EUZN0_WD-WMC4M1501124
-```
-
----
-
-## 6. Configure PCIe Passthrough (Manual Setup)
-
-### 6.1. Enable IOMMU in GRUB
-```bash
-nano /etc/default/grub
-```
-
-Find the line with `GRUB_CMDLINE_LINUX_DEFAULT` and change to:
-```bash
-GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt"
-```
-
-Update GRUB:
-```bash
-update-grub
-```
-
-### 6.2. Load VFIO Modules
-```bash
-nano /etc/modules
-```
-
-Add these lines:
-```bash
-vfio
-vfio_iommu_type1
-vfio_pci
-vfio_virqfd
-```
-
-### 6.3. Blacklist Conflicting Drivers
-```bash
-nano /etc/modprobe.d/blacklist.conf
-```
-
-Add:
-```bash
-blacklist nouveau
-blacklist radeon
-# Do NOT blacklist nvidia - we need it for power management
-```
-
-### 6.4. Disable Any Existing VFIO Auto-Binding
-```bash
-# If PECU or other tools created this file, disable it
-mv /etc/modprobe.d/vfio.conf /etc/modprobe.d/vfio.conf.disabled 2>/dev/null || true
-```
-
-### 6.5. Update Initramfs and Reboot
-```bash
-update-initramfs -u
-reboot
-```
-
-### 6.6. Verify IOMMU After Reboot
-```bash
-# Check IOMMU is enabled
-dmesg | grep -i iommu
-
-# Should show: "IOMMU enabled" or "DMAR: IOMMU enabled"
-
-# Check kernel parameters
-cat /proc/cmdline
-
-# Should include: intel_iommu=on iommu=pt
-```
-
----
-
-## 7. Install NVIDIA Driver and Configure Power Management
-
-### 7.1. Install Prerequisites
-```bash
-apt install -y build-essential dkms pve-headers pkg-config
-```
-
-### 7.2. Check Kernel and Headers Match
-```bash
-uname -r
-dpkg -l | grep headers
-```
-
-Ensure you have `proxmox-headers-X.XX.X-X-pve` matching your kernel version.
-
-### 7.3. Identify Your GPU
-```bash
+# Find your GPU PCI IDs
 lspci -nn | grep -i nvidia
+
+# Example output:
+# 01:00.0 VGA ... [10de:2d04]  ← Use this for GPU_VGA_PCI_ID and GPU_VGA_DEVICE_ID
+# 01:00.1 Audio ... [10de:22eb] ← Use this for GPU_AUDIO_PCI_ID and GPU_AUDIO_DEVICE_ID
+
+# In .env file, set:
+GPU_VGA_PCI_ID="0000:01:00.0"
+GPU_AUDIO_PCI_ID="0000:01:00.1"
+GPU_VGA_DEVICE_ID="10de:2d04"
+GPU_AUDIO_DEVICE_ID="10de:22eb"
+VM_ID="200"  # Your VM ID
+CPU_VENDOR="intel"  # or "amd"
 ```
 
-Example output:
-```
-01:00.0 VGA compatible controller [0300]: NVIDIA Corporation GB206 [GeForce RTX 5060 Ti] [10de:2d04] (rev a1)
-01:00.1 Audio device [0403]: NVIDIA Corporation Device [10de:22eb] (rev a1)
-```
+### 4. Run Setup Script
 
-**Note your PCI IDs:** `01:00.0` and `01:00.1`
-
-### 7.4. Unbind GPU (If Currently Bound)
 ```bash
-# Unbind GPU from any current driver
-echo 0000:01:00.0 > /sys/bus/pci/devices/0000:01:00.0/driver/unbind 2>/dev/null || true
-echo 0000:01:00.1 > /sys/bus/pci/devices/0000:01:00.1/driver/unbind 2>/dev/null || true
-
-# Clear any driver overrides
-echo "" > /sys/bus/pci/devices/0000:01:00.0/driver_override 2>/dev/null || true
+# Run as root
+./setup-gpu-passthrough.sh
 ```
 
-### 7.5. Download NVIDIA Driver
-```bash
-# Create downloads directory
-mkdir -p ~/nvidia-driver
-cd ~/nvidia-driver
+The script will:
+1. ✅ Configure IOMMU and VFIO modules
+2. ✅ Install NVIDIA driver (correct version for your GPU)
+3. ✅ Set up persistence daemon
+4. ✅ Create hook scripts for automatic GPU switching
+5. ✅ Configure boot initialization
 
-# Download driver for RTX 5060 Ti (580.x required)
-wget https://us.download.nvidia.com/XFree86/Linux-x86_64/580.119.02/NVIDIA-Linux-x86_64-580.119.02.run
+**The script handles reboots automatically** - just run it once and follow the prompts!
 
-# Make executable
-chmod +x NVIDIA-Linux-x86_64-580.119.02.run
-```
+### 5. Add GPU to VM
 
-### 7.6. Install NVIDIA Driver
-```bash
-./NVIDIA-Linux-x86_64-580.119.02.run
-```
+After setup completes:
 
-**Installation prompts:**
-
-1. **Kernel module type?** → `MIT` (or `Proprietary`, either works)
-2. **X library path warning?** → `OK` (we don't need X)
-3. **32-bit compatibility warning?** → `OK` (not needed)
-4. **Register with DKMS?** → `Yes` (important for kernel updates)
-5. **Run nvidia-xconfig?** → `No` (headless server)
-
-### 7.7. Verify Driver Installation
-```bash
-# Check driver installed
-nvidia-smi
-
-# Check modules loaded
-lsmod | grep nvidia
-
-# Check DKMS status
-dkms status
-```
-
----
-
-## 8. Configure NVIDIA Persistence Daemon
-
-### 8.1. Create Persistence Service
-```bash
-cat <<EOF > /etc/systemd/system/nvidia-persistenced.service
-[Unit]
-Description=NVIDIA Persistence Daemon
-After=network.target
-
-[Service]
-Type=forking
-ExecStart=/usr/bin/nvidia-persistenced --user root --no-persistence-mode
-ExecStop=/usr/bin/nvidia-persistenced --terminate
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-**Note:** `--no-persistence-mode` allows hook scripts to control persistence dynamically.
-
-### 8.2. Enable Persistence Service
-```bash
-systemctl daemon-reload
-systemctl enable nvidia-persistenced
-systemctl start nvidia-persistenced
-systemctl status nvidia-persistenced
-```
-
----
-
-## 9. Configure GPU Boot Initialization
-
-### 9.1. Create Initialization Script
-```bash
-nano /usr/local/bin/nvidia-gpu-init.sh
-```
-
-Add this content (replace PCI IDs with yours):
-```bash
-#!/bin/bash
-# NVIDIA GPU Initialization on Boot
-
-GPU_VGA="0000:01:00.0"
-GPU_AUDIO="0000:01:00.1"
-
-# Wait for system to settle
-sleep 5
-
-logger "nvidia-gpu-init: Starting GPU initialization"
-
-# Check if already bound to nvidia
-if [ -e "/sys/bus/pci/devices/$GPU_VGA/driver" ]; then
-    CURRENT_DRIVER=$(readlink /sys/bus/pci/devices/$GPU_VGA/driver | awk -F'/' '{print $NF}')
-    
-    if [ "$CURRENT_DRIVER" == "nvidia" ]; then
-        logger "nvidia-gpu-init: GPU already on nvidia driver"
-        /usr/bin/nvidia-smi -pm 1
-        exit 0
-    fi
-    
-    # Unbind from current driver
-    echo "$GPU_VGA" > /sys/bus/pci/devices/$GPU_VGA/driver/unbind 2>/dev/null || true
-    echo "$GPU_AUDIO" > /sys/bus/pci/devices/$GPU_AUDIO/driver/unbind 2>/dev/null || true
-fi
-
-# Bind to nvidia driver
-echo "nvidia" > /sys/bus/pci/devices/$GPU_VGA/driver_override
-echo "$GPU_VGA" > /sys/bus/pci/drivers/nvidia/bind
-
-# Wait and enable persistence
-sleep 2
-/usr/bin/nvidia-smi -pm 1
-
-logger "nvidia-gpu-init: GPU initialization complete"
-exit 0
-```
-
-Make it executable:
-```bash
-chmod +x /usr/local/bin/nvidia-gpu-init.sh
-```
-
-### 9.2. Create Systemd Service
-```bash
-nano /etc/systemd/system/nvidia-gpu-init.service
-```
-
-Add:
-```ini
-[Unit]
-Description=NVIDIA GPU Initialization on Boot
-After=nvidia-persistenced.service
-Requires=nvidia-persistenced.service
-Before=pve-guests.service
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/nvidia-gpu-init.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable the service:
-```bash
-systemctl daemon-reload
-systemctl enable nvidia-gpu-init.service
-```
-
----
-
-## 10. Create VM Hook Script
-
-### 10.1. Create Hook Script
-```bash
-nano /var/lib/vz/snippets/gpu-200-hook.sh
-```
-
-Add this content (replace PCI IDs with yours):
-```bash
-#!/usr/bin/env bash
-################################################################################
-# GPU Passthrough Hook for VM 200
-################################################################################
-
-GPU_VGA="0000:01:00.0"
-GPU_AUDIO="0000:01:00.1"
-
-if [ "$2" == "pre-start" ]; then
-    # VM starting - bind GPU to vfio-pci
-    logger "GPU Hook: VM $1 starting - binding GPU to vfio-pci"
-    
-    # Disable persistence mode
-    nvidia-smi -i "$GPU_VGA" --persistence-mode=0 2>/dev/null || true
-    
-    # Unbind from NVIDIA driver
-    echo "$GPU_VGA" > /sys/bus/pci/devices/$GPU_VGA/driver/unbind 2>/dev/null || true
-    echo "$GPU_AUDIO" > /sys/bus/pci/devices/$GPU_AUDIO/driver/unbind 2>/dev/null || true
-    
-    # Bind to vfio-pci
-    echo vfio-pci > /sys/bus/pci/devices/$GPU_VGA/driver_override
-    echo vfio-pci > /sys/bus/pci/devices/$GPU_AUDIO/driver_override
-    echo "$GPU_VGA" > /sys/bus/pci/drivers/vfio-pci/bind 2>/dev/null || true
-    echo "$GPU_AUDIO" > /sys/bus/pci/drivers/vfio-pci/bind 2>/dev/null || true
-    
-    logger "GPU Hook: GPU bound to vfio-pci for VM $1"
-
-elif [ "$2" == "post-stop" ]; then
-    # VM stopped - return GPU to nvidia driver
-    logger "GPU Hook: VM $1 stopped - returning GPU to nvidia driver"
-    
-    # Unbind from vfio-pci
-    echo "$GPU_VGA" > /sys/bus/pci/devices/$GPU_VGA/driver/unbind 2>/dev/null || true
-    echo "$GPU_AUDIO" > /sys/bus/pci/devices/$GPU_AUDIO/driver/unbind 2>/dev/null || true
-    
-    # Bind to nvidia driver
-    echo nvidia > /sys/bus/pci/devices/$GPU_VGA/driver_override
-    echo "" > /sys/bus/pci/devices/$GPU_AUDIO/driver_override
-    echo "$GPU_VGA" > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true
-    
-    # Re-enable persistence mode
-    sleep 1
-    nvidia-smi -i "$GPU_VGA" --persistence-mode=1 2>/dev/null || true
-    
-    logger "GPU Hook: GPU returned to nvidia driver with persistence mode"
-fi
-
-exit 0
-```
-
-Make it executable:
-```bash
-chmod +x /var/lib/vz/snippets/gpu-200-hook.sh
-```
-
-### 10.2. Add Hook Script to VM Config
-```bash
-nano /etc/pve/qemu-server/200.conf
-```
-
-Add this line:
-```ini
-hookscript: local:snippets/gpu-200-hook.sh
-```
-
----
-
-## 11. Add GPU to VM (Proxmox Web UI)
-
-1. Select VM 200
-2. Hardware → Add → PCI Device
-3. Select your GPU (01:00.0)
-4. Check **"All Functions"** (includes audio device)
+1. Open Proxmox web UI
+2. Select your VM → Hardware → Add → PCI Device
+3. Select your GPU
+4. Check **"All Functions"** (includes audio)
 5. Check **"PCI-Express"**
 6. Click Add
 
-Your VM config should now have:
-```ini
-hostpci0: 0000:01:00,pcie=1
-```
+### 6. Verify Setup
 
----
+After final reboot:
 
-## 12. Final Reboot and Testing
-
-### 12.1. Reboot System
 ```bash
-reboot
-```
-
-### 12.2. After Reboot - Verify Setup
-
-**Check GPU is on nvidia driver:**
-```bash
-lspci -nnk -s 01:00.0
-# Should show: Kernel driver in use: nvidia
-```
-
-**Check power state:**
-```bash
+# Check GPU is in low power state
 nvidia-smi --query-gpu=name,pstate,power.draw,persistence_mode --format=csv
-# Should show: P8 state, ~5-15W power
-```
 
-**Monitor in real-time:**
-```bash
+# Expected: P8 state, 5-15W power draw
+
+# Monitor in real-time
 watch -n 1 'nvidia-smi --query-gpu=name,pstate,power.draw --format=table'
 ```
 
-### 12.3. Test VM Start/Stop
+## How It Works
 
-**Terminal 1 - Monitor GPU:**
-```bash
-watch -n 1 'lspci -nnk -s 01:00.0 | grep "driver in use"; nvidia-smi 2>&1 | head -15'
+### Dynamic GPU Switching
+
+**VM Off (Host Control):**
+```
+GPU → nvidia driver → Persistence mode enabled → P8 low power state (5-15W)
 ```
 
-**Terminal 2 - Control VM:**
-```bash
-# Start VM
-qm start 200
-# GPU should switch to vfio-pci
-
-# Stop VM
-qm stop 200
-# GPU should return to nvidia driver and enter P8 state
+**VM Starting (Hook Script):**
+```
+Hook script: Disable persistence → Unbind nvidia → Bind vfio-pci → VM uses GPU
 ```
 
-**Check hook script logs:**
+**VM Running:**
+```
+GPU fully available to VM (40-200W depending on load)
+```
+
+**VM Stopping (Hook Script):**
+```
+Hook script: Unbind vfio-pci → Bind nvidia → Enable persistence → P8 state
+```
+
+### What Gets Configured
+
+**System Configuration:**
+- `/etc/default/grub` - IOMMU parameters
+- `/etc/modules-load.d/vfio.conf` - VFIO modules
+- `/etc/modprobe.d/blacklist.conf` - Driver blacklist
+
+**NVIDIA Setup:**
+- `/usr/local/bin/nvidia-gpu-init.sh` - Boot initialization
+- `/etc/systemd/system/nvidia-persistenced.service` - Persistence daemon
+- `/etc/systemd/system/nvidia-gpu-init.service` - Init service
+
+**VM Integration:**
+- `/var/lib/vz/snippets/gpu-{VM_ID}-hook.sh` - Hook script
+- `/etc/pve/qemu-server/{VM_ID}.conf` - VM configuration
+
+## Configuration Options
+
+### .env File Reference
+
 ```bash
+# GPU Configuration (REQUIRED)
+GPU_VGA_PCI_ID="0000:01:00.0"      # GPU video PCI ID
+GPU_AUDIO_PCI_ID="0000:01:00.1"    # GPU audio PCI ID
+GPU_VGA_DEVICE_ID="10de:2d04"      # GPU vendor:device ID
+GPU_AUDIO_DEVICE_ID="10de:22eb"    # Audio vendor:device ID
+
+# VM Configuration (REQUIRED)
+VM_ID="200"                         # VM that will use GPU
+
+# Driver Configuration (REQUIRED)
+NVIDIA_DRIVER_VERSION="580.119.02"  # Driver version
+NVIDIA_DRIVER_URL="https://..."     # Download URL
+NVIDIA_MODULE_TYPE="MIT"            # "MIT" or "Proprietary"
+
+# System Configuration (REQUIRED)
+CPU_VENDOR="intel"                  # "intel" or "amd"
+AUTO_REBOOT="false"                 # Auto-reboot between phases
+
+# Storage (Optional)
+STORAGE_DRIVE_1=""                  # Additional drives for VM
+STORAGE_DRIVE_2=""
+```
+
+### Driver Versions
+
+**RTX 50 Series (5060 Ti, 5070, 5080, 5090):**
+- Minimum: `580.x`
+- Recommended: `580.119.02` or newer
+
+**RTX 30/40 Series:**
+- Minimum: `550.x`
+- Recommended: Latest production branch
+
+**GTX 10 Series:**
+- Minimum: `470.x`
+- Recommended: `550.x`
+
+Find drivers at: https://www.nvidia.com/en-us/drivers/
+
+## Monitoring and Debugging
+
+### Check GPU Status
+
+```bash
+# Quick status
+nvidia-smi
+
+# Detailed power info
+nvidia-smi --query-gpu=name,pstate,power.draw,persistence_mode --format=table
+
+# Real-time monitoring
+watch -n 1 'nvidia-smi --query-gpu=name,pstate,power.draw --format=table'
+```
+
+### Check Driver Binding
+
+```bash
+# What driver is currently using GPU
+lspci -nnk -s 01:00.0
+
+# Expected when VM off: Kernel driver in use: nvidia
+# Expected when VM on:  Kernel driver in use: vfio-pci
+```
+
+### View Hook Script Logs
+
+```bash
+# Real-time hook script logs
 journalctl -f | grep "GPU Hook"
+
+# Recent logs
+journalctl -n 50 | grep "GPU Hook"
 ```
 
----
+### Check Services
 
-## Expected Results
+```bash
+# Persistence daemon
+systemctl status nvidia-persistenced
 
-### VM Off:
-- Driver: `nvidia`
-- Power State: `P8`
-- Power Draw: `5-15W`
+# GPU initialization
+systemctl status nvidia-gpu-init
 
-### VM Running:
-- Driver: `vfio-pci`
-- Power State: `N/A` (managed by VM)
-- Power Draw: `40-200W` (depending on load)
-
-### Power Savings:
-- **~40W savings** when VM is idle
-- **~$30-35/year** at $0.10/kWh
-
----
+# View boot logs
+journalctl -u nvidia-gpu-init
+```
 
 ## Troubleshooting
 
-### GPU Not Entering P8:
+### GPU Not Entering P8 State
+
 ```bash
 # Manually enable persistence
 nvidia-smi -pm 1
 
 # Check if bound to nvidia
 lspci -nnk -s 01:00.0
+
+# Restart services
+systemctl restart nvidia-persistenced
+systemctl restart nvidia-gpu-init
 ```
 
-### VM Won't Start:
+### VM Won't Start
+
 ```bash
 # Remove stale locks
-rm /var/lock/qemu-server/lock-200.conf
+rm /var/lock/qemu-server/lock-*.conf
 
-# Check hook script syntax
-bash -n /var/lib/vz/snippets/gpu-200-hook.sh
+# Check hook script
+bash -n /var/lib/vz/snippets/gpu-{VM_ID}-hook.sh
 
-# View logs
-journalctl -xe | grep -i "qemu\|kvm\|hook"
+# View VM logs
+journalctl -xe | grep -i "qemu\|kvm"
 ```
 
-### Driver Not Loading After Reboot:
+### Driver Not Loading
+
 ```bash
 # Check if module exists
 lsmod | grep nvidia
@@ -485,19 +261,99 @@ lsmod | grep nvidia
 # Load manually
 modprobe nvidia
 
-# Check DKMS
+# Check DKMS status
 dkms status
 
-# Rebuild if needed
-dkms install nvidia/580.119.02 -k $(uname -r)
+# Rebuild for current kernel
+dkms install nvidia/{VERSION} -k $(uname -r)
 ```
 
----
+### IOMMU Not Working
 
-## Notes
+```bash
+# Check IOMMU in kernel parameters
+cat /proc/cmdline | grep iommu
 
-- **IOMMU** must be enabled in BIOS (VT-d for Intel)
-- **Headers** must match running kernel exactly
-- **Don't blacklist nvidia driver** - we need it for power management
-- **Hook scripts** automatically switch GPU between nvidia and vfio-pci
-- **Persistence daemon** with `--no-persistence-mode` allows hook script control
+# Check IOMMU groups
+dmesg | grep -i iommu
+
+# Verify BIOS settings
+# Intel: VT-d must be enabled
+# AMD: AMD-Vi must be enabled
+```
+
+### Reset Setup
+
+```bash
+# Clear setup state and start over
+rm /root/.proxmox-gpu-setup-state
+./setup-gpu-passthrough.sh
+```
+
+## Expected Results
+
+### Power Consumption
+
+| State | Driver | Power State | Power Draw | Annual Cost* |
+|-------|--------|-------------|------------|--------------|
+| VM Off | nvidia | P8 | 5-15W | $4-13 |
+| VM Idle (old method) | vfio-pci | P0 | 40-50W | $35-45 |
+| VM Running | vfio-pci | P0-P2 | 40-200W | Varies |
+
+*At $0.10/kWh, running 24/7
+
+### Power Savings
+
+- **~40W** saved when VM is off
+- **~$30-35/year** in electricity costs
+- Reduced heat and fan noise
+- Extended GPU lifespan
+
+## Advanced Usage
+
+### Multiple VMs Sharing GPU
+
+Not recommended - only one VM can use GPU at a time. The hook script is tied to a single VM.
+
+### Multiple GPUs
+
+Create separate hook scripts for each VM/GPU combination:
+- `gpu-200-hook.sh` for VM 200 with GPU 1
+- `gpu-201-hook.sh` for VM 201 with GPU 2
+
+Update `.env` for each GPU's PCI IDs.
+
+### Manual Control
+
+Force GPU to specific driver:
+
+```bash
+# Bind to nvidia (low power)
+echo nvidia > /sys/bus/pci/devices/0000:01:00.0/driver_override
+echo 0000:01:00.0 > /sys/bus/pci/drivers/nvidia/bind
+nvidia-smi -pm 1
+
+# Bind to vfio-pci (for VM)
+echo vfio-pci > /sys/bus/pci/devices/0000:01:00.0/driver_override
+echo 0000:01:00.0 > /sys/bus/pci/drivers/vfio-pci/bind
+```
+
+## References
+
+- **Proxmox Forum Thread:** https://forum.proxmox.com/threads/power-consumption-when-gpu-idle-with-passthrough.143381/
+- **NVIDIA Persistence:** https://forums.developer.nvidia.com/t/setting-up-nvidia-persistenced/47986
+- **Proxmox Hookscripts:** https://pve.proxmox.com/pve-docs/pve-admin-guide.html#_hookscripts
+- **NVIDIA Drivers:** https://www.nvidia.com/en-us/drivers/
+
+## Support
+
+If you encounter issues:
+
+1. Check the troubleshooting section above
+2. Review hook script logs: `journalctl -f | grep "GPU Hook"`
+3. Verify IOMMU is enabled: `dmesg | grep -i iommu`
+4. Ensure BIOS virtualization is enabled (VT-d/AMD-Vi)
+
+## License
+
+Based on community solutions from Proxmox forums and NVIDIA documentation.
