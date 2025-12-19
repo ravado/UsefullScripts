@@ -353,28 +353,36 @@ phase2_nvidia_driver() {
     fi
     
     print_info "Using kernel source: $KERNEL_SOURCE"
+    echo ""
     
-    # Prepare automatic responses for installer
-    # This creates a file with responses to installer prompts
-    RESPONSE_FILE="/tmp/nvidia-installer-responses"
-    cat > "$RESPONSE_FILE" << EOF
-$NVIDIA_MODULE_TYPE
-OK
-OK
-Yes
-No
-EOF
+    # Provide clear instructions for interactive prompts
+    print_warning "The installer will ask you a few questions:"
+    echo ""
+    echo "  1. Kernel module type:"
+    echo "     → Choose: $NVIDIA_MODULE_TYPE"
+    echo ""
+    echo "  2. X library path warning (if asked):"
+    echo "     → Choose: OK"
+    echo ""
+    echo "  3. 32-bit compatibility warning (if asked):"
+    echo "     → Choose: OK"
+    echo ""
+    echo "  4. Register kernel module sources with DKMS:"
+    echo "     → Choose: Yes"
+    echo ""
+    echo "  5. Run nvidia-xconfig utility:"
+    echo "     → Choose: No"
+    echo ""
+    print_info "Installation will begin in 5 seconds..."
+    sleep 5
     
-    # Run installer with responses
+    # Run installer interactively
     "$DRIVER_PATH" \
         --kernel-source-path="$KERNEL_SOURCE" \
         --dkms \
-        --no-questions \
-        --ui=none \
-        --no-x-check \
-        --silent 2>&1 | tee /tmp/nvidia-install.log
+        --no-x-check
     
-    INSTALL_STATUS=${PIPESTATUS[0]}
+    INSTALL_STATUS=$?
     
     if [ $INSTALL_STATUS -ne 0 ]; then
         print_error "Driver installation failed!"
