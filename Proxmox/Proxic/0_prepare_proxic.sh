@@ -452,7 +452,7 @@ phase3_finalization() {
     
     if nvidia-smi &> /dev/null; then
         print_success "NVIDIA driver working!"
-        nvidia-smi --query-gpu=name,driver_version --format=table
+        nvidia-smi --query-gpu=name,driver_version --format=csv,noheader
     else
         print_error "nvidia-smi failed - driver may not be working correctly"
         exit 1
@@ -685,7 +685,7 @@ HOOKEOF
     
     # Final status check
     print_info "Current GPU status:"
-    nvidia-smi --query-gpu=name,pstate,power.draw,persistence_mode --format=table
+    nvidia-smi --query-gpu=name,pstate,power.draw,persistence_mode --format=csv,noheader
     
     print_success "Phase 3 complete!"
     
@@ -713,7 +713,7 @@ HOOKEOF
     echo ""
     print_info "🔍 Monitoring Commands:"
     echo "  📊 Real-time GPU status:"
-    echo "     watch -n 1 'nvidia-smi --query-gpu=name,pstate,power.draw --format=table'"
+    echo "     watch -n 1 'nvidia-smi'"
     echo ""
     echo "  📋 Hook script logs:"
     echo "     journalctl -f | grep 'GPU Hook'"
