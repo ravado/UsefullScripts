@@ -31,26 +31,30 @@ NC='\033[0m' # No Color
 
 print_header() {
     echo ""
-    echo -e "${CYAN}========================================${NC}"
-    echo -e "${CYAN}$1${NC}"
-    echo -e "${CYAN}========================================${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}  $1${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
     echo ""
 }
 
 print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}ℹ️  [INFO]${NC} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}✅ [SUCCESS]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}⚠️  [WARNING]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}❌ [ERROR]${NC} $1"
+}
+
+print_question() {
+    echo -e "${CYAN}❓ [QUESTION]${NC} $1"
 }
 
 ################################################################################
@@ -140,7 +144,7 @@ clear_state() {
 
 # Phase 1: System preparation and IOMMU setup
 phase1_system_prep() {
-    print_header "Phase 1: System Preparation and IOMMU Setup"
+    print_header "🔧 Phase 1: System Preparation and IOMMU Setup"
     
     print_info "Installing prerequisites..."
     apt update
@@ -267,7 +271,7 @@ EOF
 
 # Phase 2: NVIDIA driver installation
 phase2_nvidia_driver() {
-    print_header "Phase 2: NVIDIA Driver Installation"
+    print_header "🎮 Phase 2: NVIDIA Driver Installation"
     
     # Verify IOMMU is enabled
     print_info "Verifying IOMMU is enabled..."
@@ -427,7 +431,7 @@ phase2_nvidia_driver() {
 
 # Phase 3: Hook scripts and finalization
 phase3_finalization() {
-    print_header "Phase 3: Hook Scripts and Finalization"
+    print_header "✨ Phase 3: Hook Scripts and Finalization"
     
     # Bind GPU to nvidia driver first
     print_info "Binding GPU to NVIDIA driver..."
@@ -689,41 +693,41 @@ HOOKEOF
     clear_state
     
     # Final summary
-    print_header "Setup Complete!"
+    print_header "🎉 Setup Complete!"
     
     echo ""
     print_success "GPU passthrough with power management is now configured!"
     echo ""
-    print_info "Configuration Summary:"
-    echo "  GPU: $GPU_VGA_PCI_ID"
-    echo "  VM ID: $VM_ID"
-    echo "  Driver: NVIDIA $NVIDIA_DRIVER_VERSION"
-    echo "  Hook script: $HOOK_SCRIPT"
+    print_info "📋 Configuration Summary:"
+    echo "  🎮 GPU: $GPU_VGA_PCI_ID"
+    echo "  💻 VM ID: $VM_ID"
+    echo "  🔧 Driver: NVIDIA $NVIDIA_DRIVER_VERSION"
+    echo "  📜 Hook script: $HOOK_SCRIPT"
     echo ""
-    print_info "Next Steps:"
-    echo "  1. Reboot system: reboot"
-    echo "  2. After reboot, verify GPU is in P8 state:"
+    print_info "📝 Next Steps:"
+    echo "  1️⃣  Reboot system: reboot"
+    echo "  2️⃣  After reboot, verify GPU is in P8 state:"
     echo "     nvidia-smi --query-gpu=pstate,power.draw --format=csv"
-    echo "  3. Ensure GPU is added to VM $VM_ID via web UI"
-    echo "  4. Test VM start/stop to verify dynamic GPU switching"
+    echo "  3️⃣  Ensure GPU is added to VM $VM_ID via web UI"
+    echo "  4️⃣  Test VM start/stop to verify dynamic GPU switching"
     echo ""
-    print_info "Monitoring Commands:"
-    echo "  # Real-time GPU status"
-    echo "  watch -n 1 'nvidia-smi --query-gpu=name,pstate,power.draw --format=table'"
+    print_info "🔍 Monitoring Commands:"
+    echo "  📊 Real-time GPU status:"
+    echo "     watch -n 1 'nvidia-smi --query-gpu=name,pstate,power.draw --format=table'"
     echo ""
-    echo "  # Hook script logs"
-    echo "  journalctl -f | grep 'GPU Hook'"
+    echo "  📋 Hook script logs:"
+    echo "     journalctl -f | grep 'GPU Hook'"
     echo ""
-    echo "  # Current GPU driver binding"
-    echo "  lspci -nnk -s ${GPU_VGA_PCI_ID#0000:}"
+    echo "  🔌 Current GPU driver binding:"
+    echo "     lspci -nnk -s ${GPU_VGA_PCI_ID#0000:}"
     echo ""
     
     if [ "$AUTO_REBOOT" == "true" ]; then
-        print_warning "Auto-reboot enabled. Rebooting in 10 seconds..."
+        print_warning "⏰ Auto-reboot enabled. Rebooting in 10 seconds..."
         sleep 10
         reboot
     else
-        print_info "Please reboot to complete setup: reboot"
+        print_info "♻️  Please reboot to complete setup: reboot"
     fi
 }
 
@@ -737,9 +741,9 @@ validate_config
 # Get current phase
 CURRENT_PHASE=$(get_phase)
 
-print_header "Proxmox GPU Passthrough Setup"
-print_info "Configuration loaded from: $ENV_FILE"
-print_info "Current phase: $CURRENT_PHASE"
+print_header "🚀 Proxmox GPU Passthrough Setup"
+print_info "📄 Configuration loaded from: $ENV_FILE"
+print_info "🔢 Current phase: $CURRENT_PHASE"
 
 case $CURRENT_PHASE in
     0)
