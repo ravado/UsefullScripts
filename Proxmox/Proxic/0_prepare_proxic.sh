@@ -146,8 +146,12 @@ clear_state() {
 phase1_system_prep() {
     print_header "🔧 Phase 1: System Preparation and IOMMU Setup"
     
-    print_info "Installing prerequisites..."
+    print_info "Updating system packages..."
     apt update
+    apt full-upgrade -y
+    print_success "System packages updated"
+    
+    print_info "Installing prerequisites..."
     apt install -y build-essential dkms pve-headers pkg-config
     
     # Verify kernel headers
@@ -704,22 +708,76 @@ HOOKEOF
     echo "  🔧 Driver: NVIDIA $NVIDIA_DRIVER_VERSION"
     echo "  📜 Hook script: $HOOK_SCRIPT"
     echo ""
-    print_info "📝 Next Steps:"
-    echo "  1️⃣  Reboot system: reboot"
-    echo "  2️⃣  After reboot, verify GPU is in P8 state:"
-    echo "     nvidia-smi --query-gpu=pstate,power.draw --format=csv"
-    echo "  3️⃣  Ensure GPU is added to VM $VM_ID via web UI"
-    echo "  4️⃣  Test VM start/stop to verify dynamic GPU switching"
+    
+    print_header "📝 Manual Steps Required"
+    
     echo ""
-    print_info "🔍 Monitoring Commands:"
-    echo "  📊 Real-time GPU status:"
+    print_info "🔧 Step 1: Add GPU to VM (via Proxmox Web UI)"
+    echo "  1. Go to VM $VM_ID → Hardware → Add → PCI Device"
+    echo "  2. Select GPU: $GPU_VGA_PCI_ID"
+    echo "  3. ✅ Check 'All Functions' (includes audio)"
+    echo "  4. ✅ Check 'PCI-Express'"
+    echo "  5. Click Add"
+    echo ""
+    
+    print_info "📜 Step 2: Verify Hook Script is Configured"
+    echo "  Check VM config:"
+    echo "    cat /etc/pve/qemu-server/${VM_ID}.conf | grep hookscript"
+    echo ""
+    echo "  Should show:"
+    echo "    hookscript: local:snippets/gpu-${VM_ID}-hook.sh"
+    echo ""
+    echo "  If missing, add it:"
+    echo "    echo 'hookscript: local:snippets/gpu-${VM_ID}-hook.sh' >> /etc/pve/qemu-server/${VM_ID}.conf"
+    echo ""
+    
+    if [ -n "${STORAGE_DRIVE_1:-}" ] || [ -n "${STORAGE_DRIVE_2:-}" ]; then
+        print_info "💾 Step 3: Attach Storage Drives to VM (Optional)"
+        [ -n "${STORAGE_DRIVE_1:-}" ] && echo "  qm set $VM_ID -sata0 $STORAGE_DRIVE_1"
+        [ -n "${STORAGE_DRIVE_2:-}" ] && echo "  qm set $VM_ID -sata1 $STORAGE_DRIVE_2"
+        echo ""
+    fi
+    
+    print_header "🔄 Next Steps"
+    
+    echo ""
+    print_info "1️⃣  Reboot the system:"
+    echo "     reboot"
+    echo ""
+    print_info "2️⃣  After reboot, verify GPU is in P8 low power state:"
+    echo "     nvidia-smi"
+    echo "     # Should show P8 state, 5-15W power draw"
+    echo ""
+    print_info "3️⃣  Test VM start/stop cycle:"
+    echo "     qm start $VM_ID"
+    echo "     # GPU should switch to vfio-pci"
+    echo ""
+    echo "     qm stop $VM_ID"
+    echo "     # GPU should return to nvidia driver and P8 state"
+    echo ""
+    
+    print_header "🔍 Monitoring & Troubleshooting"
+    
+    echo ""
+    print_info "📊 Real-time GPU status:"
     echo "     watch -n 1 'nvidia-smi'"
     echo ""
-    echo "  📋 Hook script logs:"
+    print_info "🔌 Check GPU driver binding:"
+    echo "     lspci -nnk -s ${GPU_VGA_PCI_ID#0000:}"
+    echo ""
+    print_info "📋 Monitor hook script logs:"
     echo "     journalctl -f | grep 'GPU Hook'"
     echo ""
-    echo "  🔌 Current GPU driver binding:"
-    echo "     lspci -nnk -s ${GPU_VGA_PCI_ID#0000:}"
+    print_info "🧪 Test hook script manually:"
+    echo "     # Simulate post-stop (return GPU to host)"
+    echo "     /var/lib/vz/snippets/gpu-${VM_ID}-hook.sh $VM_ID post-stop"
+    echo ""
+    print_info "🔧 If GPU doesn't return to host after VM shutdown:"
+    echo "     # Manually bind GPU back to nvidia:"
+    echo "     echo '$GPU_VGA_PCI_ID' > /sys/bus/pci/devices/$GPU_VGA_PCI_ID/driver/unbind"
+    echo "     echo 'nvidia' > /sys/bus/pci/devices/$GPU_VGA_PCI_ID/driver_override"
+    echo "     echo '$GPU_VGA_PCI_ID' > /sys/bus/pci/drivers/nvidia/bind"
+    echo "     nvidia-smi -pm 1"
     echo ""
     
     if [ "$AUTO_REBOOT" == "true" ]; then
