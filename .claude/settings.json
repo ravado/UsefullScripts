@@ -19,5 +19,106 @@
       "Bash(curl * | bash)",
       "Bash(wget * | bash)"
     ]
+  },
+
+  "defaultModel": "haiku",
+  "modelOverrides": {
+    "planMode": "sonnet",
+    "complexTasks": "sonnet"
+  },
+
+  "defaultReadLimit": 150,
+  "readLimits": {
+    "*.sh": 150,
+    "*.py": 150,
+    "*.md": 200
+  },
+
+  "excludePatterns": [
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.bmp",
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**"
+  ],
+
+  "parallelReads": {
+    "enabled": true,
+    "maxConcurrent": 5
+  },
+
+  "searchDefaults": {
+    "useGrep": true,
+    "headLimit": 20,
+    "contextLines": 2
+  },
+
+  "contextBudget": {
+    "maxTokensPerFile": 2000,
+    "maxTotalTokens": 10000
+  },
+
+  "subagents": {
+    "explore": {
+      "model": "haiku",
+      "thoroughness": "quick",
+      "maxFiles": 10
+    },
+    "plan": {
+      "model": "sonnet",
+      "thoroughness": "medium"
+    },
+    "general-purpose": {
+      "model": "haiku",
+      "maxTurns": 5
+    }
+  },
+
+  "taskPatterns": {
+    "photoframe": {
+      "components": ["PhotoFrame/**"],
+      "model": "haiku",
+      "readDependencies": ["PhotoFrame/migration/env_loader.sh"],
+      "contextFiles": ["PhotoFrame/migration/ANALYSIS_REPORT.md"]
+    },
+    "proxmox": {
+      "components": ["Proxmox/**"],
+      "model": "sonnet",
+      "reason": "Complex orchestration scripts (825 lines)"
+    },
+    "stoikvisnyk": {
+      "components": ["StoikVisnyk/**"],
+      "model": "haiku",
+      "reason": "Simple Python bot, AWS Lambda"
+    },
+    "simple-scripts": {
+      "patterns": ["**/read_*.py", "**/mount_*.sh"],
+      "model": "haiku",
+      "autoApprove": true
+    }
+  },
+
+  "autoLoadContext": {
+    "migration": [
+      "PhotoFrame/migration/env_loader.sh",
+      "TASK-001.md"
+    ],
+    "proxmox": [
+      "Proxmox/README.md"
+    ],
+    "bot": [
+      "StoikVisnyk/dailyMotivationApp/README.md"
+    ]
+  },
+
+  "commonPatterns": {
+    "env_loading": "source.*env_loader",
+    "error_handling": "set -euo pipefail",
+    "color_output": "(RED|GREEN|YELLOW)=",
+    "numbered_scripts": "[0-9]_.*\\.sh"
   }
 }
