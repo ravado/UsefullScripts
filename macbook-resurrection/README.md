@@ -4,13 +4,13 @@ Run these on fresh Zorin OS:
 
 ```bash
 # Install TeamViewer, Viber, Telegram (+ Chrome & Brave)
-bash <(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/MacBookResurrection/1.install_required_apps.sh) --with-chrome --with-brave
+bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/macbook-resurrection/1.install_required_apps.sh) --with-chrome --with-brave
 
 # Install only TeamViewer, Viber, Telegram
-bash <(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/MacBookResurrection/1.install_required_apps.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/macbook-resurrection/1.install_required_apps.sh)
 
 # Apply mac-like layout (top bar + bottom dock)
-bash <(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/MacBookResurrection/2.zorin-maclike-layout.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/macbook-resurrection/2.zorin-maclike-layout.sh)
 ```
 
 ---
@@ -28,17 +28,17 @@ Two helper scripts to finish setup on Zorin OS (e.g., MBP Late-2013):
 
 **Apps (with Chrome + Brave):**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/MacBookResurrection/1.install_required_apps.sh) --with-chrome --with-brave
+bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/macbook-resurrection/1.install_required_apps.sh) --with-chrome --with-brave
 ```
 
 **Apps (just TeamViewer, Viber, Telegram):**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/MacBookResurrection/1.install_required_apps.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/macbook-resurrection/1.install_required_apps.sh)
 ```
 
 **Mac-like layout (top + dock):**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/MacBookResurrection/2.zorin-maclike-layout.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/macbook-resurrection/2.zorin-maclike-layout.sh)
 ```
 
 ---

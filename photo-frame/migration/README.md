@@ -48,7 +48,7 @@ SMB_CRED_PASS="your_client_pass"
 To download all scripts, ensure environment loading is set up, and run each script interactively with confirmation:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/main/PhotoFrame/migration/install_all.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/main/photo-frame/migration/install_all.sh)
 ```
 
 ## 📌 Prefixes and Backup Names

@@ -13,7 +13,7 @@ sudo apt update && sudo apt install -y curl
 ```
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/logs-and-monitoring/install_alloy.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/photo-frame/logs-and-monitoring/install_alloy.sh)"
 ```
 
 
@@ -22,7 +22,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/re
 Bootstraps resizer/sync/backup helpers and any prerequisites:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/migration/install_all.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/photo-frame/migration/install_all.sh)"
 ```
 
 ## Next Steps

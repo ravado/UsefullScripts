@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-BACKUP_URL="https://raw.githubusercontent.com/ravado/UsefullScripts/refs/heads/main/PhotoFrame/migration/0_backup_setup.sh"
+BACKUP_URL="https://raw.githubusercontent.com/ravado/usefull-scripts/refs/heads/main/photo-frame/migration/0_backup_setup.sh"
 BACKUP_SCRIPT_PATH="/usr/local/bin/backup_setup.sh"
 
 read -rp "Prefix (home/batanovs/cherednychoks): " prefix

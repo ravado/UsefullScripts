@@ -1,4 +1,4 @@
-# UsefullScripts
+# usefull-scripts
 
 Personal home lab automation scripts for infrastructure management.
 
@@ -6,11 +6,11 @@ Personal home lab automation scripts for infrastructure management.
 
 | Directory | Description |
 |-----------|-------------|
-| [PhotoFrame](./PhotoFrame/) | Raspberry Pi digital photo frame with sensors and monitoring |
-| [Proxmox](./Proxmox/) | GPU passthrough, backup nodes, VM automation |
-| [StoikVisnyk](./StoikVisnyk/) | Ukrainian Stoicism Telegram bot |
-| [MacBookResurrection](./MacBookResurrection/) | Zorin OS setup for old MacBooks |
-| [SelfSignCertificates](./SelfSignCertificates/) | Home lab SSL certificate authority |
+| [photo-frame](./photo-frame/) | Raspberry Pi digital photo frame with sensors and monitoring |
+| [proxmox](./proxmox/) | GPU passthrough, backup nodes, VM automation |
+| [stoik-visnyk](./stoik-visnyk/) | Ukrainian Stoicism Telegram bot |
+| [macbook-resurrection](./macbook-resurrection/) | Zorin OS setup for old MacBooks |
+| [self-sign-certificates](./self-sign-certificates/) | Home lab SSL certificate authority |
 
 ## Quick Start
 

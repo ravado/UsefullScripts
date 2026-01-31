@@ -1,4 +1,4 @@
-# UsefullScripts Project Context
+# usefull-scripts Project Context
 
 ## Overview
 Home lab automation repository with Bash/Python scripts for:
@@ -14,8 +14,8 @@ Home lab automation repository with Bash/Python scripts for:
 - Color-coded output (RED, GREEN, YELLOW)
 
 ## Important Files
-- `TASK-001.md` - Current issues to fix in PhotoFrame migration
-- `PhotoFrame/migration/ANALYSIS_REPORT.md` - Detailed issue analysis
+- `TASK-001.md` - Current issues to fix in photo-frame migration
+- `photo-frame/migration/ANALYSIS_REPORT.md` - Detailed issue analysis
 
 ## Flow
 Before implementing any feature create an TASK-*.md file with a plan and place it into .claude/steering/plans
