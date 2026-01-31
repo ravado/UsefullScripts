@@ -10,7 +10,7 @@
 #
 # Features:
 #   - ISO storage via NFS
-#   - Proxmox Backup Server (local and external datastores)
+#   - Proxmox Backup Server (multiple datastores/namespaces)
 #   - Network connectivity checks with retry logic
 #   - Dry-run mode support
 ################################################################################
@@ -259,12 +259,13 @@ add_or_update_iso_storage() {
 # Proxmox Backup Server Configuration (Generic)
 ################################################################################
 
-add_or_update_pbs_generic() {
+add_or_update_pbs_storage() {
     local id="$1"
     local datastore="$2"
-    local label="$3"
+    local namespace="${3:-}"
+    local label="$4"
     
-    print_header "💾 Proxmox Backup Server - $label"
+    print_header "💾 PBS Storage - $label"
     
     # Validate required variables
     [ -n "${PBS_SERVER:-}" ] || die "PBS_SERVER is required"
@@ -285,15 +286,9 @@ add_or_update_pbs_generic() {
     echo "  👤 Username: $user"
     echo "  🔐 Fingerprint: ${fp:0:20}..."
     echo "  📋 Content: $content"
+    [ -n "$namespace" ] && echo "  📁 Namespace: $namespace"
     [ -n "${PBS_NODES:-}" ] && echo "  🔗 Nodes: $PBS_NODES"
-    [ -n "${PBS_NAMESPACE:-}" ] && echo "  📁 Namespace: $PBS_NAMESPACE"
     echo ""
-    
-    # Check network connectivity first (PBS uses port 8007)
-    if ! retry_with_user_choice "PBS ($label)" "$server" "generic"; then
-        print_warning "PBS $label storage configuration skipped"
-        return 0
-    fi
     
     # Build command based on whether storage exists
     local cmd
@@ -309,7 +304,7 @@ add_or_update_pbs_generic() {
     
     # Add optional parameters
     [ -n "${PBS_NODES:-}" ] && cmd+=(--nodes "$PBS_NODES")
-    [ -n "${PBS_NAMESPACE:-}" ] && cmd+=(--namespace "$PBS_NAMESPACE")
+    [ -n "$namespace" ] && cmd+=(--namespace "$namespace")
     
     # Execute command
     print_cmd "${cmd[*]}"
@@ -328,29 +323,45 @@ add_or_update_pbs_generic() {
 }
 
 ################################################################################
-# PBS External (USB Storage)
+# Configure All PBS Storage Locations
 ################################################################################
 
-add_or_update_pbs_external() {
-    [ -n "${PBS_EXTERNAL_ID:-}" ] && [ -n "${PBS_EXTERNAL_DATASTORE:-}" ] || {
-        print_info "PBS External storage not configured, skipping..."
+configure_pbs_storages() {
+    # Check PBS server connectivity once
+    if ! retry_with_user_choice "PBS" "$PBS_SERVER" "generic"; then
+        print_warning "PBS server not reachable, skipping all PBS storage configuration"
         return 0
-    }
+    fi
     
-    add_or_update_pbs_generic "$PBS_EXTERNAL_ID" "$PBS_EXTERNAL_DATASTORE" "External USB"
-}
-
-################################################################################
-# PBS Local (Local NASIK Storage)
-################################################################################
-
-add_or_update_pbs_local() {
-    [ -n "${PBS_LOCAL_ID:-}" ] && [ -n "${PBS_LOCAL_DATASTORE:-}" ] || {
-        print_info "PBS Local storage not configured, skipping..."
-        return 0
-    }
+    # Configure each PBS storage location
     
-    add_or_update_pbs_generic "$PBS_LOCAL_ID" "$PBS_LOCAL_DATASTORE" "Local"
+    # Root namespace (current Proxmox backups)
+    if [ -n "${PBS_PROXIC_ID:-}" ] && [ -n "${PBS_PROXIC_DATASTORE:-}" ]; then
+        add_or_update_pbs_storage \
+            "$PBS_PROXIC_ID" \
+            "$PBS_PROXIC_DATASTORE" \
+            "${PBS_PROXIC_NAMESPACE:-}" \
+            "Proxic (Current Host)"
+    fi
+    
+    # NucBox namespace
+    if [ -n "${PBS_NUCBOX_ID:-}" ] && [ -n "${PBS_NUCBOX_DATASTORE:-}" ]; then
+        add_or_update_pbs_storage \
+            "$PBS_NUCBOX_ID" \
+            "$PBS_NUCBOX_DATASTORE" \
+            "${PBS_NUCBOX_NAMESPACE:-}" \
+            "NucBox"
+    fi
+    
+    # Add more namespace-based storages as needed
+    # Example for future additions:
+    # if [ -n "${PBS_HOMELAB_ID:-}" ] && [ -n "${PBS_HOMELAB_DATASTORE:-}" ]; then
+    #     add_or_update_pbs_storage \
+    #         "$PBS_HOMELAB_ID" \
+    #         "$PBS_HOMELAB_DATASTORE" \
+    #         "${PBS_HOMELAB_NAMESPACE:-}" \
+    #         "Homelab"
+    # fi
 }
 
 ################################################################################
@@ -377,10 +388,7 @@ main() {
     add_or_update_iso_storage
     echo ""
     
-    add_or_update_pbs_external
-    echo ""
-    
-    add_or_update_pbs_local
+    configure_pbs_storages
     echo ""
     
     # Show final status
