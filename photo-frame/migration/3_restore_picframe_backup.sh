@@ -234,8 +234,8 @@ if [ -d "$TARGET_DIR/.git" ]; then
     git -C "$TARGET_DIR" pull --ff-only
     echo "✅ Repo updated to latest main."
 else
-    echo "🔄 Cloning UsefullScripts repo (branch: main)..."
-    if git clone --branch main --single-branch git@github.com:ravado/UsefullScripts.git "$TARGET_DIR"; then
+    echo "🔄 Cloning usefull-scripts repo (branch: main)..."
+    if git clone --branch main --single-branch git@github.com:ravado/usefull-scripts.git "$TARGET_DIR"; then
         echo "✅ Scripts repository cloned on branch main"
     else
         echo "❌ Failed to clone Scripts repository. Check SSH keys and GitHub access."

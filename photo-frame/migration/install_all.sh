@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO_URL="https://raw.githubusercontent.com/ravado/UsefullScripts/main/PhotoFrame/migration"
+REPO_URL="https://raw.githubusercontent.com/ravado/usefull-scripts/main/photo-frame/migration"
 
 # Always work in current dir for curl|bash
 SCRIPT_DIR="$(pwd)"

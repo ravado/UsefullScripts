@@ -8,7 +8,7 @@ from exifread import exif_log
 
 exif_log.setup_logger(True, True)
 
-path_name = '/Users/ivan.cherednychok/Projects/UsefullScripts/PictureFrame/20220814_193905-1.jpg'
+path_name = '/Users/ivan.cherednychok/Projects/usefull-scripts/PictureFrame/20220814_193905-1.jpg'
 f = open(path_name, 'rb')
 tags = exifread.process_file(f, debug=True)
 print(tags)
