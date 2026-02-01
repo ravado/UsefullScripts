@@ -185,3 +185,7 @@ After fixes:
 - [ ] Phase 3: Medium priority fixes
 - [ ] Phase 4: Low priority fixes
 - [ ] Test on Pi Zero 2W
+
+> [!NOTE]
+> **Superseded by TASK-003**
+> Many critical and high-priority fixes outlined here (Swap, Timeout, Venv) have been consolidated into [TASK-003](./TASK-003.md) for a more focused implementation on a fresh install scenario. Please refer to TASK-003.
