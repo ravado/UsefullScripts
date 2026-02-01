@@ -1,6 +1,28 @@
 #!/bin/bash
 set -euo pipefail
 
+###########################
+# SMB Timeout Wrapper
+###########################
+
+SMB_TIMEOUT="${SMB_TIMEOUT:-120}"
+
+smb_with_timeout() {
+    timeout "$SMB_TIMEOUT" smbclient "$@"
+    local EXIT_CODE=$?
+
+    if [[ $EXIT_CODE -eq 124 ]]; then
+        echo "❌ SMB operation timed out after ${SMB_TIMEOUT} seconds"
+        echo "   Check network connection to SMB server"
+        return 1
+    elif [[ $EXIT_CODE -ne 0 ]]; then
+        echo "❌ SMB operation failed (exit code: $EXIT_CODE)"
+        return $EXIT_CODE
+    fi
+
+    return 0
+}
+
 # --- defaults (override with flags) ---
 SMB_BACKUPS_PATH="//192.168.91.198/Backups" # e.g. //SERVER/SHARE
 SMB_BACKUPS_SUBDIR="PhotoFrames"           # remote subfolder on the share
@@ -157,18 +179,18 @@ if [ -f "$SMB_CRED_FILE" ]; then
     ARCHIVE_DIR="$(dirname "$BACKUP_ARCHIVE")"
     ARCHIVE_FILE="$(basename "$BACKUP_ARCHIVE")"
 
-    if smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
+    if smb_with_timeout "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
         -c "cd $SMB_BACKUPS_SUBDIR; lcd $ARCHIVE_DIR; put $ARCHIVE_FILE"; then
-        
+
         echo "✅ Backup uploaded to SMB."
 
         echo "🗑️ Applying retention policy (keep last $MAX_BACKUPS backups for prefix '$PREFIX')..."
-        smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
+        smb_with_timeout "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
             -c "cd $SMB_BACKUPS_SUBDIR; ls" | \
             awk '{print $1}' | grep "^picframe_${PREFIX}_setup_backup_.*\.tar\.gz$" | sort -r | \
             tail -n +$((MAX_BACKUPS+1)) | while read -r OLD_FILE; do
                 echo "🗑️ Removing old backup on SMB: $OLD_FILE"
-                smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
+                smb_with_timeout "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" \
                     -c "cd $SMB_BACKUPS_SUBDIR; del $OLD_FILE"
             done
 

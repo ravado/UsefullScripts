@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 ###########################
 # Load secrets from .env file
@@ -66,8 +67,18 @@ echo "🔐 Creating Samba user '$USERNAME'..."
 if sudo pdbedit -L | grep -q "^$USERNAME:"; then
     echo "ℹ️ Samba user '$USERNAME' already exists, skipping"
 else
-    echo -e "$PASSWORD\n$PASSWORD" | sudo smbpasswd -a "$USERNAME" -s
-    sudo smbpasswd -e "$USERNAME"
+    echo "🔐 Creating Samba user '$USERNAME'..."
+
+    if ! echo -e "$PASSWORD\n$PASSWORD" | sudo smbpasswd -a "$USERNAME" -s 2>&1 | grep -v "Added user"; then
+        echo "❌ Failed to create Samba user '$USERNAME'"
+        exit 1
+    fi
+
+    if ! sudo smbpasswd -e "$USERNAME"; then
+        echo "❌ Failed to enable Samba user '$USERNAME'"
+        exit 1
+    fi
+
     echo "✅ Samba user '$USERNAME' created and enabled"
 fi
 

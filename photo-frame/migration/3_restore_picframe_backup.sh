@@ -1,6 +1,28 @@
 #!/bin/bash
 set -euo pipefail
 
+###########################
+# SMB Timeout Wrapper
+###########################
+
+SMB_TIMEOUT="${SMB_TIMEOUT:-120}"
+
+smb_with_timeout() {
+    timeout "$SMB_TIMEOUT" smbclient "$@"
+    local EXIT_CODE=$?
+
+    if [[ $EXIT_CODE -eq 124 ]]; then
+        echo "❌ SMB operation timed out after ${SMB_TIMEOUT} seconds"
+        echo "   Check network connection to SMB server"
+        return 1
+    elif [[ $EXIT_CODE -ne 0 ]]; then
+        echo "❌ SMB operation failed (exit code: $EXIT_CODE)"
+        return $EXIT_CODE
+    fi
+
+    return 0
+}
+
 # Load environment variables and validate
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ! source "$SCRIPT_DIR/env_loader.sh"; then
@@ -72,7 +94,7 @@ BACKUP_PREFIX="picframe_${PREFIX}_setup_backup_"
 if [[ "$BACKUP_INPUT" == "latest" ]]; then
     echo "🔍 Searching SMB ($SMB_BACKUPS_PATH/$SMB_BACKUPS_SUBDIR) for latest backup with prefix: $BACKUP_PREFIX"
 
-    LATEST_FILE=$(smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; ls" \
+    LATEST_FILE=$(smb_with_timeout "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; ls" \
                   | awk '{print $1}' \
                   | grep "^${BACKUP_PREFIX}" \
                   | sort -r \
@@ -95,7 +117,7 @@ fi
 ###########################
 if [ ! -f "$LOCAL_TMP/$BACKUP_NAME" ]; then
     echo "📥 Downloading $BACKUP_NAME from SMB..."
-    smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; lcd $LOCAL_TMP; get $BACKUP_NAME"
+    smb_with_timeout "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR; lcd $LOCAL_TMP; get $BACKUP_NAME"
     BACKUP_PATH="$LOCAL_TMP/$BACKUP_NAME"
 else
     BACKUP_PATH="$LOCAL_TMP/$BACKUP_NAME"
@@ -172,7 +194,7 @@ CONFIG_REMOTE="configs/${PREFIX}_updated_config.yml"
 CONFIG_LOCAL="$LOCAL_TMP/${PREFIX}_updated_config.yml"
 
 # Fetch updated config from SMB share
-smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR/configs; lcd $LOCAL_TMP; get ${PREFIX}_updated_config.yml" || {
+smb_with_timeout "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR/configs; lcd $LOCAL_TMP; get ${PREFIX}_updated_config.yml" || {
     echo "⚠️ No updated config found on SMB for $PREFIX"
 }
 
