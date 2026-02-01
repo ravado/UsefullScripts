@@ -193,13 +193,12 @@ if [ -d "picframe" ]; then
     rm -rf picframe
 fi
 
-# Clone with timeout and shallow depth (faster, less memory)
+# Clone with timeout (fetch main and develop branches)
 echo "   Repository: https://github.com/ravado/picframe.git"
-echo "   Branch: main"
+echo "   Branches: main, develop"
 echo "   Timeout: 5 minutes"
 
-if ! timeout 300 git clone --depth 1 --single-branch -b main \
-    https://github.com/ravado/picframe.git 2>&1 | tee /tmp/picframe-git-clone.log; then
+if ! timeout 300 git clone https://github.com/ravado/picframe.git 2>&1 | tee /tmp/picframe-git-clone.log; then
 
     echo "❌ Git clone failed or timed out after 5 minutes"
     echo "   Check network connection and GitHub availability"
@@ -210,15 +209,16 @@ fi
 cd picframe
 echo "✅ Repository cloned successfully"
 
+# Switch to develop branch
+echo "🔀 Switching to develop branch..."
+git checkout develop
+
 echo "🐍 Installing Picframe in development mode..."
 # Ensure venv is activated
 source "$VENV_PATH/bin/activate"
 pip install -e .
 
 echo "✅ Picframe installed in virtual environment"
-
-# Switch to develop branch
-git checkout develop
 
 # echo "📂 Initializing Picframe config..."
 # picframe -i "$HOME_DIR"
