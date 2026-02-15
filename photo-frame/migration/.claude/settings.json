@@ -1,0 +1,5 @@
+{
+  "permissions": {
+    "deny": ["Edit(backup.env)", "Edit(**/*.env)"]
+  }
+}
