@@ -1,6 +1,6 @@
 # PicFrame Migration Project
 
-Digital photo frame deployment on Raspberry Pi Zero 2W using fork of [picframe](https://github.com/helgeerbe/picframe). Forkis here https://github.com/ravado/picframe
+Digital photo frame deployment on Raspberry Pi Zero 2W using fork of [picframe](https://github.com/helgeerbe/picframe). Fork is here https://github.com/ravado/picframe
 
 ## Hardware Constraints
 - **512MB RAM**, quad-core ARM Cortex-A53
@@ -15,6 +15,8 @@ Two approaches exist:
 2. **Community script** — uses venv, labwc/Wayland, user `pi`, simpler but missing WireGuard/rclone/backup
 
 Migration goal: Use community install + restore configs from custom backups.
+How picframe should be installed: using venv and no `--break-system-packages` flags
+OS: PiOS 64bit based on Debian Trixie
 
 ## Key Paths
 
@@ -54,6 +56,7 @@ USERNAME, PASSWORD, SMB_CRED_USER, SMB_CRED_PASS
 | `2_restore_samba.sh` | Configure local Samba |
 | `3_restore_picframe_backup.sh <prefix> latest` | Restore from SMB |
 | `5_configure_photo_sync.sh <prefix>` | Setup rclone sync service |
+| `community_installation.sh` | The way community suggest installing on a fresh device |
 
 ## Conventions
 - Bash with `set -euo pipefail`
