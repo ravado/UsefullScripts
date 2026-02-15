@@ -1,103 +1,35 @@
-#!/bin/bash
+# Fix Installation Dependencies and Initialization Issues
 
-# PicFrame Developer Mode Installation Script
-# Installs picframe fork (https://github.com/ravado/picframe) in developer mode
-# Based on community_installation.sh with modifications for development workflow
+## Goal
 
-# Configuration variables
-INSTALL_USER="pi"
-REPO_URL="https://github.com/ravado/picframe.git"
-REPO_BRANCH="develop"
-VENV_PATH="/home/$INSTALL_USER/venv_picframe"
-REPO_PATH="/home/$INSTALL_USER/picframe"
-DATA_PATH="/home/$INSTALL_USER/picframe_data"
+Make the installation script more robust by adding proper error handling, dependency validation, and fixing the picframe initialization step that's currently failing silently.
 
-# Path to store progress and log file
-PROGRESS_FILE="/home/$INSTALL_USER/install_progress.txt"
-LOG_FILE="/home/$INSTALL_USER/install_log.txt"
-SERVICE_NAME="install_script_service"
+## Problem Analysis
 
-# Function to log messages
-log_message() {
-    echo "$1" | tee -a "$LOG_FILE"
-}
+**Current Issue**: User runs picframe after installation and gets:
+```
+FileNotFoundError: [Errno 2] No such file or directory: '/home/pi/picframe_data/config/configuration.yaml'
+```
 
-# Function to update progress
-update_progress() {
-    echo "$1" > "$PROGRESS_FILE"
-}
+**Root Causes Identified**:
+1. Step 5 (picframe installation) uses `if (echo ... | ...) then` which may succeed even if initialization fails
+2. No verification that `configuration.yaml` was actually created
+3. Missing error output when initialization fails
+4. No pre-flight checks for system dependencies
+5. Progress tracking continues even if critical steps fail
+6. No rollback or retry mechanism for failed steps
+7. **Missing hardware sensor Python packages** (gpiod, Adafruit CircuitPython libraries)
+8. No verification that installed packages are actually importable
 
-# Function to get the last completed step
-get_last_completed_step() {
-    if [ -f "$PROGRESS_FILE" ]; then
-        cat "$PROGRESS_FILE"
-    else
-        echo "0"
-    fi
-}
+## Changes
 
-# Function to add a systemd service to resume the script after reboot
-add_systemd_service() {
-    local script_path=$(realpath "$0")
-    SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
-    sudo tee "$SERVICE_FILE" > /dev/null <<EOL
-[Unit]
-Description=Resume install script after reboot
+### 1. Add Pre-Flight Dependency Check (New Step 0)
 
-[Service]
-ExecStart=$script_path
-Type=oneshot
-RemainAfterExit=true
+**File**: `1_install_picframe_developer_mode.sh`
 
-[Install]
-WantedBy=multi-user.target
-EOL
-    sudo systemctl enable $SERVICE_NAME
-    log_message "Added systemd service for reboot resume."
-}
+**Insert before Step 1** (before line 101):
 
-# Function to remove the systemd service after completion
-remove_systemd_service() {
-    sudo systemctl disable $SERVICE_NAME
-    sudo rm /etc/systemd/system/$SERVICE_NAME.service
-    log_message "Removed systemd service after completion."
-}
-
-# Function to reboot and resume
-reboot_and_resume() {
-    add_systemd_service
-    update_progress "$1"
-    log_message "Rebooting to complete the installation. The script will continue after reboot."
-    sudo reboot
-    exit 0
-}
-
-# Function to check for a working internet connection
-check_internet_connection() {
-  log_message "Checking for an active internet connection..."
-  while ! ping -c 1 -W 1 google.com &> /dev/null; do
-    log_message "No internet connection. Retrying in 5 seconds..."
-    sleep 5
-  done
-  log_message "Internet connection confirmed."
-}
-
-# Ensure the user has passwordless sudo for specific commands
-sudoers_entry="$INSTALL_USER ALL=(ALL) NOPASSWD: $VENV_PATH/bin/picframe, $VENV_PATH/bin/pip, /usr/bin/python3, /bin/mkdir"
-
-# Check if the entry already exists in the sudoers file to avoid duplication
-if ! sudo grep -qF "$sudoers_entry" /etc/sudoers; then
-    echo "$sudoers_entry" | sudo tee -a /etc/sudoers > /dev/null
-    echo "Configured passwordless sudo for the '$INSTALL_USER' user."
-else
-    echo "Passwordless sudo for '$INSTALL_USER' user is already configured."
-fi
-
-# Main install script
-
-# Get the last completed step
-LAST_COMPLETED_STEP=$(get_last_completed_step)
-
+```bash
 # Step 0: Pre-flight system checks
 if [ "$LAST_COMPLETED_STEP" -lt 0 ]; then
     log_message "Step 0: Running pre-flight checks..."
@@ -140,99 +72,17 @@ if [ "$LAST_COMPLETED_STEP" -lt 0 ]; then
     log_message "✅ Pre-flight checks passed"
     update_progress 0
 fi
+```
 
-# Step 1: Update the operating system...
-if [ "$LAST_COMPLETED_STEP" -lt 1 ]; then
-    check_internet_connection
-    log_message "Step 1: Updating operating system..."
-    sudo apt-get update && sudo apt upgrade -y
-    reboot_and_resume 1
-fi
+**Adjust all subsequent step numbers**: Step 1 becomes "if [ $LAST_COMPLETED_STEP -lt 1 ]" (already correct)
 
-# Step 2: Update raspi-config to boot in console as user...
-if [ "$LAST_COMPLETED_STEP" -lt 2 ]; then
-    log_message "Step 2: Updating raspi-config..."
-    sudo raspi-config nonint do_boot_behaviour B2
-    reboot_and_resume 2
-fi
+### 2. Fix Step 5 - Add Robust Error Handling for Picframe Installation
 
-# Step 3: Install Samba and set up user with error handling
-if [ "$LAST_COMPLETED_STEP" -lt 3 ]; then
-    check_internet_connection
-    log_message "Step 3: Installing Samba and configuring user..."
+**File**: `1_install_picframe_developer_mode.sh`
 
-    # Attempt to install Samba
-    sudo apt-get install samba -y
+**Replace lines 193-235** (entire Step 5):
 
-    # Ensure expect is installed for automating smbpasswd
-    if ! command -v expect > /dev/null; then
-        sudo apt-get install -y expect
-    fi
-
-    # Check if the Samba user already exists, if not, add it using expect for reliable password setting
-    if ! sudo pdbedit -L | grep -q "^$INSTALL_USER:"; then
-        sudo expect <<EOL
-spawn sudo smbpasswd -a $INSTALL_USER
-expect "New SMB password:"
-send "$INSTALL_USER\r"
-expect "Retype SMB password:"
-send "$INSTALL_USER\r"
-expect eof
-EOL
-    fi
-
-    # Modify Samba config file
-    SAMBA_CONFIG="/etc/samba/smb.conf"
-    sudo tee "$SAMBA_CONFIG" > /dev/null <<EOL
-[global]
-security = user
-workgroup = WORKGROUP
-server role = standalone server
-map to guest = never
-encrypt passwords = yes
-obey pam restrictions = no
-client min protocol = SMB2
-client max protocol = SMB3
-
-# Additional macOS fine-tuning for users; optional for Windows
-
-vfs objects = catia fruit streams_xattr
-fruit:metadata = stream
-fruit:model = RackMac
-fruit:posix_rename = yes
-fruit:veto_appledouble = no
-fruit:wipe_intentionally_left_blank_rfork = yes
-fruit:delete_empty_adfiles = yes
-
-[$INSTALL_USER]
-comment = $INSTALL_USER Directories
-browseable = yes
-path = /home/$INSTALL_USER
-read only = no
-create mask = 0775
-directory mask = 0775
-EOL
-
-    # Restart Samba service
-    sudo systemctl restart smbd
-    update_progress 3
-    log_message "Samba installation and configuration completed."
-fi
-
-# Step 4: Install additional packages
-if [ "$LAST_COMPLETED_STEP" -lt 4 ]; then
-    check_internet_connection
-    log_message "Step 4: Installing additional packages..."
-    sudo apt-get install git libsdl2-dev xwayland labwc wlr-randr vlc ffmpeg -y
-    # Create Pictures and DeletedPictures directories
-    su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures /home/$INSTALL_USER/DeletedPictures"
-    log_message "Directories 'Pictures' and 'DeletedPictures' created."
-    # Install Mosquitto for MQTT
-    sudo apt-get install -y mosquitto mosquitto-clients
-    log_message "Mosquitto Server installed."
-    reboot_and_resume 4
-fi
-
+```bash
 # Step 5: Installing picframe in developer mode
 if [ "$LAST_COMPLETED_STEP" -lt 5 ]; then
     check_internet_connection
@@ -379,92 +229,15 @@ EOF
     log_message "✅ Step 5 completed successfully"
     update_progress 5
 fi
+```
 
-# Step 6: Configure Mosquitto for anonymous access and open listener
-if [ "$LAST_COMPLETED_STEP" -lt 6 ]; then
-    log_message "Step 6: Configuring Mosquitto for anonymous access and listener..."
+### 3. Add Post-Installation Verification Step
 
-    # Edit the Mosquitto configuration file
-    log_message "Editing /etc/mosquitto/mosquitto.conf to allow anonymous access and open listener..."
-    echo "allow_anonymous true" | sudo tee -a /etc/mosquitto/mosquitto.conf > /dev/null
-    echo "listener 1883 0.0.0.0" | sudo tee -a /etc/mosquitto/mosquitto.conf > /dev/null
+**File**: `1_install_picframe_developer_mode.sh`
 
-    # Restart the Mosquitto service to apply changes
-    sudo systemctl restart mosquitto
-    log_message "Mosquitto configuration updated and service restarted."
+**Insert after Step 8** (before the final cleanup, around line 322):
 
-    # Mark step as completed
-    update_progress 6
-    log_message "Mosquitto configuration completed."
-fi
-
-# Step 7: Create autostart script for Picframe
-if [ "$LAST_COMPLETED_STEP" -lt 7 ]; then
-    log_message "Step 7: Creating autostart script for Picframe as user '$INSTALL_USER'..."
-
-    # Create autostart script for Picframe
-    AUTOSTART_SCRIPT="/home/$INSTALL_USER/start_picframe.sh"
-    su - $INSTALL_USER -c "cat > $AUTOSTART_SCRIPT" <<EOL
-#!/bin/bash
-source $VENV_PATH/bin/activate  # Activate Python virtual environment
-picframe &  # Start Picframe in the background
-EOL
-
-    # Make the autostart script executable
-    su - $INSTALL_USER -c "chmod +x $AUTOSTART_SCRIPT"
-    log_message "Autostart script created and made executable: $AUTOSTART_SCRIPT."
-
-    # Mark step as completed
-    update_progress 7
-    log_message "Directory setup and autostart script creation completed."
-fi
-
-# Step 8: Configure autostart for Picframe using labwc and set up systemd service
-if [ "$LAST_COMPLETED_STEP" -lt 8 ]; then
-    log_message "Step 8: Configuring autostart for Picframe with labwc and setting up systemd service as user '$INSTALL_USER'..."
-
-    # Create labwc autostart directory and configuration file
-    su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/.config/labwc"
-    AUTOSTART_FILE="/home/$INSTALL_USER/.config/labwc/autostart"
-    su - $INSTALL_USER -c "cat > $AUTOSTART_FILE" <<EOL
-/home/$INSTALL_USER/start_picframe.sh
-EOL
-    log_message "Created labwc autostart configuration: $AUTOSTART_FILE"
-
-    # Create labwc rc.xml for window decorations
-    RC_XML_FILE="/home/$INSTALL_USER/.config/labwc/rc.xml"
-    su - $INSTALL_USER -c "cat > $RC_XML_FILE" <<'EOL'
-<windowRules>
-    <windowRule identifier="*" serverDecoration="no" />
-</windowRules>
-EOL
-    log_message "Created labwc rc.xml configuration for window decoration: $RC_XML_FILE"
-
-    # Create systemd user service to start labwc on boot
-    su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/.config/systemd/user"
-    SYSTEMD_SERVICE_FILE="/home/$INSTALL_USER/.config/systemd/user/picframe.service"
-    su - $INSTALL_USER -c "cat > $SYSTEMD_SERVICE_FILE" <<'EOL'
-[Unit]
-Description=PictureFrame on Pi
-
-[Service]
-ExecStart=/usr/bin/labwc
-Restart=always
-
-[Install]
-WantedBy=default.target
-EOL
-    log_message "Created systemd service for Picframe: $SYSTEMD_SERVICE_FILE"
-
-    # Enable the user systemd service for autostart
-    su - $INSTALL_USER -c "systemctl --user enable picframe.service"
-    log_message "Enabled systemd user service for Picframe autostart."
-
-    # Mark step as completed and reboot to apply changes
-    log_message "Autostart configuration for Picframe completed. Rebooting to apply changes."
-    reboot_and_resume 8
-fi
-
+```bash
 # Step 9: Post-installation verification
 if [ "$LAST_COMPLETED_STEP" -ge 8 ] && [ "$LAST_COMPLETED_STEP" -lt 9 ]; then
     log_message "Step 9: Running post-installation verification..."
@@ -566,3 +339,261 @@ if [ "$LAST_COMPLETED_STEP" -ge 9 ]; then
     sleep 10
     sudo reboot
 fi
+```
+
+### 4. Update Final Cleanup Logic
+
+**File**: `1_install_picframe_developer_mode.sh`
+
+**Replace lines 323-327**:
+
+```bash
+# Final step: Remove the systemd service only if all steps are completed
+if [ "$LAST_COMPLETED_STEP" -ge 9 ]; then
+    remove_systemd_service
+    log_message "Installation complete! System will reboot in 10 seconds..."
+    sleep 10
+    sudo reboot
+fi
+```
+
+### 5. Add Recovery Command Documentation
+
+**File**: Create new `INSTALLATION_TROUBLESHOOTING.md`
+
+```markdown
+# PicFrame Installation Troubleshooting
+
+## Quick Diagnostics
+
+### Check Installation Progress
+```bash
+cat ~/install_progress.txt
+```
+Should show `9` when fully complete.
+
+### Check Installation Log
+```bash
+less ~/install_log.txt
+# Or search for errors:
+grep -i "error\|failed" ~/install_log.txt
+```
+
+### Verify Config Exists
+```bash
+ls -la ~/picframe_data/config/configuration.yaml
+```
+
+### Test PicFrame Binary
+```bash
+~/venv_picframe/bin/picframe --version
+```
+
+## Common Issues
+
+### Issue 1: Config File Missing
+
+**Symptom**: `FileNotFoundError: configuration.yaml`
+
+**Fix**:
+```bash
+# Manual initialization
+cd ~
+~/venv_picframe/bin/picframe -i ~/
+# Press Enter 3 times to accept defaults
+
+# If that fails, copy from template:
+mkdir -p ~/picframe_data/config
+cp ~/picframe/src/picframe/data/configuration.yaml ~/picframe_data/config/
+```
+
+### Issue 2: Installation Stuck at Step X
+
+**Check current step**:
+```bash
+cat ~/install_progress.txt
+```
+
+**Resume from current step**:
+```bash
+sudo ./1_install_picframe_developer_mode.sh <username>
+```
+
+The script automatically resumes from the last completed step.
+
+### Issue 3: Virtual Environment Broken
+
+**Symptom**: `command not found: picframe`
+
+**Fix**:
+```bash
+# Recreate venv
+rm -rf ~/venv_picframe
+python3 -m venv ~/venv_picframe
+
+# Reinstall all dependencies
+cd ~/picframe
+~/venv_picframe/bin/pip install --upgrade pip
+~/venv_picframe/bin/pip install paho-mqtt
+
+# Install hardware sensor libraries
+~/venv_picframe/bin/pip install gpiod adafruit-blinka adafruit-platformdetect
+~/venv_picframe/bin/pip install adafruit-circuitpython-bme280 adafruit-circuitpython-dht
+~/venv_picframe/bin/pip install adafruit-circuitpython-bme680 adafruit-circuitpython-ahtx0
+
+# Install picframe in developer mode
+~/venv_picframe/bin/pip install -e .
+```
+
+### Issue 4: Sensor Import Errors
+
+**Symptom**: `ModuleNotFoundError: No module named 'adafruit_dht'` or similar
+
+**Fix**:
+```bash
+# Install missing sensor packages
+~/venv_picframe/bin/pip install gpiod adafruit-blinka adafruit-platformdetect
+~/venv_picframe/bin/pip install adafruit-circuitpython-bme280 adafruit-circuitpython-dht
+~/venv_picframe/bin/pip install adafruit-circuitpython-bme680 adafruit-circuitpython-ahtx0
+
+# Verify imports work
+~/venv_picframe/bin/python3 -c "import board; import adafruit_dht; print('✅ Sensor packages OK')"
+```
+
+### Issue 5: Permission Errors
+
+**Fix**:
+```bash
+# Fix ownership
+sudo chown -R $USER:$USER ~/picframe ~/picframe_data ~/venv_picframe
+
+# Fix permissions
+chmod -R u+rwX ~/picframe ~/picframe_data ~/venv_picframe
+```
+
+## Manual Verification Steps
+
+After installation, verify everything works:
+
+```bash
+# 1. Check picframe binary
+~/venv_picframe/bin/picframe --version
+
+# 2. Verify config file
+cat ~/picframe_data/config/configuration.yaml
+
+# 3. Check directories
+ls -la ~/Pictures ~/DeletedPictures ~/picframe_data
+
+# 4. Test systemd service
+systemctl --user status picframe
+
+# 5. Try running picframe manually (Ctrl+C to stop)
+~/venv_picframe/bin/picframe
+```
+
+## Reset and Start Over
+
+If all else fails:
+
+```bash
+# Clean up
+rm -rf ~/picframe ~/picframe_data ~/venv_picframe ~/Pictures ~/DeletedPictures
+rm ~/install_progress.txt ~/install_log.txt
+sudo systemctl disable install_script_service 2>/dev/null
+sudo rm /etc/systemd/system/install_script_service.service 2>/dev/null
+
+# Start fresh
+sudo ./1_install_picframe_developer_mode.sh <username>
+```
+```
+
+## Testing Plan
+
+### Test 1: Fresh Installation on Clean System
+```bash
+# On fresh Pi with user 'ivan'
+./1_install_picframe_developer_mode.sh ivan
+
+# Verify:
+# - Pre-flight checks pass
+# - All 9 steps complete
+# - Config file exists at ~/picframe_data/config/configuration.yaml
+# - Picframe runs: ~/venv_picframe/bin/picframe --version
+# - Post-installation summary shows all paths
+```
+
+### Test 2: Installation with Low Memory
+```bash
+# Test warning appears when memory < 512MB
+free -m
+
+./1_install_picframe_developer_mode.sh pi
+
+# Verify warning message appears in log
+```
+
+### Test 3: Recovery from Failed Step 5
+```bash
+# Simulate failure: manually set progress to 4
+echo "4" > ~/install_progress.txt
+
+# Resume installation
+./1_install_picframe_developer_mode.sh pi
+
+# Verify Step 5 runs and creates config file
+```
+
+### Test 4: Invalid Username
+```bash
+# Should fail at pre-flight check
+./1_install_picframe_developer_mode.sh nonexistent_user
+
+# Verify error message about user not existing
+```
+
+### Test 5: Config File Verification
+```bash
+# After installation, manually delete config
+rm ~/picframe_data/config/configuration.yaml
+
+# Try to run picframe - should get clear error
+~/venv_picframe/bin/picframe
+
+# Then restore: should show how to fix
+```
+
+## Critical Files
+
+- `/Users/ivan.cherednychok/Projects/usefull-scripts/photo-frame/migration/1_install_picframe_developer_mode.sh` - Main installation script
+- `/Users/ivan.cherednychok/Projects/usefull-scripts/photo-frame/migration/INSTALLATION_TROUBLESHOOTING.md` - New troubleshooting guide (to create)
+
+## Success Criteria
+
+After implementation:
+- [ ] Pre-flight checks validate system state before starting
+- [ ] Step 5 has proper error handling for each sub-step
+- [ ] Config file creation is verified (not assumed)
+- [ ] Manual fallback creates config from template if auto-init fails
+- [ ] Post-installation verification (Step 9) catches missing components
+- [ ] Installation summary displays all paths and next steps
+- [ ] Troubleshooting guide helps users fix common issues
+- [ ] Failed installations can be resumed without starting over
+
+## Rollback
+
+If issues arise:
+- Script preserves progress at each step (can resume)
+- Log file captures all output for debugging
+- Troubleshooting guide provides manual recovery procedures
+- User can clean up and restart with documented commands
+
+## Out of Scope
+
+**Not included in this plan**:
+- Automated backup/restore integration
+- Network timeout handling for package downloads (separate issue)
+- Memory optimization for rclone/compilation (separate issue)
+- Migration from X11 to Wayland display commands (separate issue)
+
+These will be addressed in future iterations.
