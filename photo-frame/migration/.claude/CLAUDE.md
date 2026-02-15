@@ -68,3 +68,25 @@ USERNAME, PASSWORD, SMB_CRED_USER, SMB_CRED_PASS
 - rclone defaults (4 transfers, 8 checkers) exhaust RAM
 - `Adafruit_DHT` C compilation can OOM — use `adafruit-circuitpython-dht` instead
 - X11 display commands (`xset`) don't work with Wayland (`wlr-randr` instead)
+
+## Workflow Rules
+
+**Always create a plan before implementing.** No code changes without approved plan.
+
+1. Create `.claude/plans/YYYY-MM-DD-<short-title>.md`
+2. Present plan and wait for explicit "approved" / "go ahead" / "do it"
+3. Only then implement
+
+### Plan Format
+```markdown
+# Title
+
+## Goal
+One sentence: what are we achieving?
+
+## Steps
+- [ ] Step with specific files/commands
+
+## Rollback
+How to undo if needed
+```
