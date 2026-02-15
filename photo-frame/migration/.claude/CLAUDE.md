@@ -73,9 +73,10 @@ USERNAME, PASSWORD, SMB_CRED_USER, SMB_CRED_PASS
 
 **Always create a plan before implementing.** No code changes without approved plan.
 
-1. Create `.claude/plans/YYYY-MM-DD-<short-title>.md`
-2. Present plan and wait for explicit "approved" / "go ahead" / "do it"
-3. Only then implement
+1. Create plan file in THIS PROJECT's `.claude/plans/` folder (not global ~/.claude)
+2. Filename: `YYYY-MM-DD-<short-title>.md`
+3. Present plan and wait for explicit "approved" / "go ahead" / "do it"
+4. Only then implement
 
 ### Plan Format
 ```markdown
