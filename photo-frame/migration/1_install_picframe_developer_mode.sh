@@ -8,7 +8,7 @@
 INSTALL_USER="ivan"
 REPO_URL="https://github.com/ravado/picframe.git"
 REPO_BRANCH="develop"
-VENV_PATH="/home/$INSTALL_USER/venv_picframe"
+VENV_PATH="/home/$INSTALL_USER/.venv_picframe"
 REPO_PATH="/home/$INSTALL_USER/picframe"
 DATA_PATH="/home/$INSTALL_USER/picframe_data"
 
@@ -156,67 +156,14 @@ if [ "$LAST_COMPLETED_STEP" -lt 2 ]; then
     reboot_and_resume 2
 fi
 
-# Step 3: Install Samba and set up user with error handling
+# Step 3: Install Samba — configuration is handled by 2_restore_samba.sh
+# Run that script separately after this installation completes.
 if [ "$LAST_COMPLETED_STEP" -lt 3 ]; then
     check_internet_connection
-    log_message "Step 3: Installing Samba and configuring user..."
-
-    # Attempt to install Samba
-    sudo apt-get install samba -y
-
-    # Ensure expect is installed for automating smbpasswd
-    if ! command -v expect > /dev/null; then
-        sudo apt-get install -y expect
-    fi
-
-    # Check if the Samba user already exists, if not, add it using expect for reliable password setting
-    if ! sudo pdbedit -L | grep -q "^$INSTALL_USER:"; then
-        sudo expect <<EOL
-spawn sudo smbpasswd -a $INSTALL_USER
-expect "New SMB password:"
-send "$INSTALL_USER\r"
-expect "Retype SMB password:"
-send "$INSTALL_USER\r"
-expect eof
-EOL
-    fi
-
-    # Modify Samba config file
-    SAMBA_CONFIG="/etc/samba/smb.conf"
-    sudo tee "$SAMBA_CONFIG" > /dev/null <<EOL
-[global]
-security = user
-workgroup = WORKGROUP
-server role = standalone server
-map to guest = never
-encrypt passwords = yes
-obey pam restrictions = no
-client min protocol = SMB2
-client max protocol = SMB3
-
-# Additional macOS fine-tuning for users; optional for Windows
-
-vfs objects = catia fruit streams_xattr
-fruit:metadata = stream
-fruit:model = RackMac
-fruit:posix_rename = yes
-fruit:veto_appledouble = no
-fruit:wipe_intentionally_left_blank_rfork = yes
-fruit:delete_empty_adfiles = yes
-
-[$INSTALL_USER]
-comment = $INSTALL_USER Directories
-browseable = yes
-path = /home/$INSTALL_USER
-read only = no
-create mask = 0775
-directory mask = 0775
-EOL
-
-    # Restart Samba service
-    sudo systemctl restart smbd
+    log_message "Step 3: Installing Samba..."
+    sudo apt-get install -y samba
     update_progress 3
-    log_message "Samba installation and configuration completed."
+    log_message "✅ Samba installed. Run 2_restore_samba.sh to configure it."
 fi
 
 # Step 4: Install additional packages
@@ -225,8 +172,8 @@ if [ "$LAST_COMPLETED_STEP" -lt 4 ]; then
     log_message "Step 4: Installing additional packages..."
     sudo apt-get install git libsdl2-dev xwayland labwc wlr-randr vlc ffmpeg -y
     # Create Pictures and DeletedPictures directories
-    su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures /home/$INSTALL_USER/DeletedPictures"
-    log_message "Directories 'Pictures' and 'DeletedPictures' created."
+    su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures/PhotoFrame /home/$INSTALL_USER/Pictures/PhotoFrameDeleted"
+    log_message "Directories 'Pictures/PhotoFrame' and 'Pictures/PhotoFrameDeleted' created."
     # Install Mosquitto for MQTT
     sudo apt-get install -y mosquitto mosquitto-clients
     log_message "Mosquitto Server installed."
@@ -361,8 +308,8 @@ EOF
         su - $INSTALL_USER -c "mkdir -p $DATA_PATH/config"
         su - $INSTALL_USER -c "mkdir -p $DATA_PATH/data"
         su - $INSTALL_USER -c "mkdir -p $DATA_PATH/html"
-        su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures"
-        su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/DeletedPictures"
+        su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures/PhotoFrame"
+        su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures/PhotoFrameDeleted"
         log_message "✅ Created directory structure"
 
         # Copy data directory (fonts, shaders, etc.)
@@ -387,8 +334,8 @@ EOF
             log_message "✅ Copied configuration template"
 
             # Update paths in configuration to match installation
-            su - $INSTALL_USER -c "sed -i 's|~/Pictures|/home/$INSTALL_USER/Pictures|g' $CONFIG_FILE"
-            su - $INSTALL_USER -c "sed -i 's|~/DeletedPictures|/home/$INSTALL_USER/DeletedPictures|g' $CONFIG_FILE"
+            su - $INSTALL_USER -c "sed -i 's|~/Pictures|/home/$INSTALL_USER/Pictures/PhotoFrame|g' $CONFIG_FILE"
+            su - $INSTALL_USER -c "sed -i 's|~/DeletedPictures|/home/$INSTALL_USER/Pictures/PhotoFrameDeleted|g' $CONFIG_FILE"
             su - $INSTALL_USER -c "sed -i 's|~/picframe_data|$DATA_PATH|g' $CONFIG_FILE"
             log_message "✅ Updated configuration paths for user $INSTALL_USER"
         else
@@ -407,8 +354,8 @@ EOF
         "$DATA_PATH/config"
         "$DATA_PATH/data"
         "$DATA_PATH/html"
-        "/home/$INSTALL_USER/Pictures"
-        "/home/$INSTALL_USER/DeletedPictures"
+        "/home/$INSTALL_USER/Pictures/PhotoFrame"
+        "/home/$INSTALL_USER/Pictures/PhotoFrameDeleted"
     )
 
     VERIFICATION_FAILED=0
@@ -540,7 +487,7 @@ if [ "$LAST_COMPLETED_STEP" -ge 8 ] && [ "$LAST_COMPLETED_STEP" -lt 9 ]; then
     fi
 
     # Verify directories exist and are writable
-    for dir in "/home/$INSTALL_USER/Pictures" "/home/$INSTALL_USER/DeletedPictures" "$DATA_PATH"; do
+    for dir in "/home/$INSTALL_USER/Pictures/PhotoFrame" "/home/$INSTALL_USER/Pictures/PhotoFrameDeleted" "$DATA_PATH"; do
         if [ ! -d "$dir" ]; then
             log_message "❌ ERROR: Required directory missing: $dir"
             exit 1
@@ -593,14 +540,14 @@ if [ "$LAST_COMPLETED_STEP" -ge 8 ] && [ "$LAST_COMPLETED_STEP" -lt 9 ]; then
     log_message "Repository:        $REPO_PATH (branch: $REPO_BRANCH)"
     log_message "Data Directory:    $DATA_PATH"
     log_message "Config File:       $CONFIG_FILE"
-    log_message "Pictures:          /home/$INSTALL_USER/Pictures"
-    log_message "Deleted Pictures:  /home/$INSTALL_USER/DeletedPictures"
+    log_message "Pictures:          /home/$INSTALL_USER/Pictures/PhotoFrame"
+    log_message "Deleted Pictures:  /home/$INSTALL_USER/Pictures/PhotoFrameDeleted"
     log_message "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     log_message ""
     log_message "✅ All checks passed! PicFrame is ready to use."
     log_message ""
     log_message "Next steps:"
-    log_message "1. Add photos to /home/$INSTALL_USER/Pictures/"
+    log_message "1. Add photos to /home/$INSTALL_USER/Pictures/PhotoFrame/"
     log_message "2. Edit config: nano $CONFIG_FILE"
     log_message "3. Start picframe: systemctl --user start picframe"
     log_message "4. Check status: systemctl --user status picframe"

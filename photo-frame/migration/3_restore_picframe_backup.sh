@@ -11,8 +11,7 @@ echo -e "=== PICFRAME RESTORATION SCRIPT ===\n"
 
 SMB_CRED_FILE="$HOME/.smbcred"
 LOCAL_TMP="/tmp/picframe_restore"
-PICFRAME_BASE="$HOME/picframe"
-PICFRAME_DATA="$PICFRAME_BASE/picframe_data"
+PICFRAME_DATA="$HOME/picframe_data"
 
 mkdir -p "$LOCAL_TMP"
 
@@ -127,35 +126,31 @@ else
     echo "⚠️ No crontab.txt found in backup, skipping"
 fi
 
-echo "🔧 Patching restored crontab to use 'xset' instead of 'vcgencmd'..."
+echo "🔧 Stripping X11/vcgencmd display commands from crontab (not compatible with Wayland)..."
 
 TMP_CRON_PATCHED="$LOCAL_TMP/patched_crontab.txt"
 
-# Read and patch crontab
-crontab -l | \
-    sed 's/vcgencmd display_power 0/xset dpms force off/g' | \
-    sed 's/vcgencmd display_power 1/xset dpms force on/g' > "$TMP_CRON_PATCHED"
+# Strip lines that use vcgencmd or xset dpms (both are X11/firmware-only, not for Wayland)
+STRIPPED_COUNT=$(crontab -l | grep -cE 'vcgencmd|xset dpms' || true)
+crontab -l | grep -vE 'vcgencmd|xset dpms' > "$TMP_CRON_PATCHED"
 
-# Add DISPLAY=:0 at the top if not already present
-if ! grep -q "^DISPLAY=" "$TMP_CRON_PATCHED"; then
-    sed -i '1iDISPLAY=:0' "$TMP_CRON_PATCHED"
-    echo "✅ Added DISPLAY=:0 to crontab"
-else
-    echo "ℹ️ DISPLAY already set in crontab"
-fi
-
-# Reinstall patched crontab
+# Reinstall stripped crontab
 crontab "$TMP_CRON_PATCHED"
-echo "✅ Patched display commands in crontab"
-
-# Cleanup
 rm "$TMP_CRON_PATCHED"
+
+if [[ "$STRIPPED_COUNT" -gt 0 ]]; then
+    echo "⚠️  Removed $STRIPPED_COUNT display on/off cron job(s) that used vcgencmd/xset dpms."
+    echo "   These are not compatible with Wayland. Reconfigure display scheduling manually"
+    echo "   using wlr-randr or a Wayland-compatible method after setup is complete."
+else
+    echo "✅ No X11/vcgencmd display entries found in crontab"
+fi
 
 ###########################
 # Restore files
 ###########################
 echo "📂 Creating necessary directories..."
-mkdir -p ~/picframe ~/Documents/Scripts ~/.config ~/.config/picframe ~/Pictures
+mkdir -p ~/Documents/Scripts ~/.config ~/Pictures/PhotoFrame ~/Pictures/PhotoFrameDeleted
 
 echo "🖼️ Restoring PicFrame data..."
 if [ -d "$BACKUP_FULL/picframe_data" ]; then
@@ -188,10 +183,15 @@ fi
 if [[ $RESTORE_SERVICE -eq 1 ]]; then
     echo "⚙️ Restoring systemd service..."
     if [ -f "$BACKUP_FULL/picframe.service" ]; then
-        sudo cp -v "$BACKUP_FULL/picframe.service" /etc/systemd/system/
-        sudo systemctl daemon-reload
-        sudo systemctl enable picframe.service
-        echo "✅ picframe.service restored from backup"
+        echo "⚠️  WARNING: The archived picframe.service was created for the old X11-based install."
+        echo "   It references system Python, xinit/X11 display, and runs as a system service."
+        echo "   The community install uses a user-level Wayland service. Review and edit the"
+        echo "   service file at ~/.config/systemd/user/picframe.service before enabling it."
+        mkdir -p ~/.config/systemd/user
+        cp -v "$BACKUP_FULL/picframe.service" ~/.config/systemd/user/picframe.service
+        systemctl --user daemon-reload
+        systemctl --user enable picframe
+        echo "✅ picframe.service restored to ~/.config/systemd/user/picframe.service"
     else
         echo "⚠️ No picframe.service found in backup"
     fi
@@ -246,8 +246,8 @@ fi
 # Create photo directories
 ###########################
 echo "📁 Ensuring photo directories exist..."
-mkdir -p ~/Pictures/PhotoFrame ~/Pictures/PhotoFrameOriginal ~/Pictures/PhotoFrameDeleted
-echo "✅ Photo directories created in ~/Pictures/"
+mkdir -p ~/Pictures/PhotoFrame ~/Pictures/PhotoFrameDeleted
+echo "✅ Photo directories ~/Pictures/PhotoFrame/ and ~/Pictures/PhotoFrameDeleted/ ready"
 ls -lah ~/Pictures
 
 ###########################
@@ -271,11 +271,11 @@ if [ $VERBOSE -eq 1 ]; then
     echo ""
     echo "📋 Verbose summary:"
     echo "   Backup used: $BACKUP_PATH"
-    echo "   Restored PicFrame config to: ~/.config/picframe/"
+    echo "   Restored PicFrame config to: ~/picframe_data/"
     echo "   Restored SSH keys to: ~/.ssh/"
     echo "   Restored WireGuard config to: /etc/wireguard/"
     echo "   Restored Samba config to: /etc/samba/"
-    echo "   Restored systemd service to: /etc/systemd/system/picframe.service"
+    echo "   Restored systemd service to: ~/.config/systemd/user/picframe.service"
 fi
 
 ###########################
