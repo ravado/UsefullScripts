@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 ###########################
 # Load secrets from .env file
@@ -40,7 +41,7 @@ map to guest = never
 [$USERNAME]
 comment = Home Directories
 browseable = yes
-path = /home/$USERNAME
+path = /home/$PICFRAME_USER
 read only = no
 create mask = 0775
 directory mask = 0775
@@ -53,11 +54,15 @@ echo "✅ Samba configuration written to $SMB_CONF"
 ###########################
 echo "👤 Ensuring system user '$USERNAME' exists..."
 if ! id "$USERNAME" &>/dev/null; then
-    sudo adduser --disabled-password --gecos "" "$USERNAME"
+    sudo adduser --disabled-password --gecos "" --allow-bad-names "$USERNAME"
     echo "✅ System user '$USERNAME' created"
 else
     echo "ℹ️ System user '$USERNAME' already exists"
 fi
+
+echo "🔗 Granting '$USERNAME' access to '$PICFRAME_USER' home directory..."
+sudo usermod -aG "$PICFRAME_USER" "$USERNAME"
+echo "✅ '$USERNAME' added to group '$PICFRAME_USER'"
 
 ###########################
 # Add Samba user
@@ -89,6 +94,7 @@ echo "🔄 Restarting Samba services..."
 if systemctl list-unit-files | grep -q '^nmbd\.service'; then
   sudo systemctl restart nmbd
 fi
+sudo systemctl restart smbd
 echo "✅ Samba services restarted"
 
 echo ""
