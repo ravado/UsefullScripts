@@ -6,11 +6,11 @@ This report analyzes 11 migration scripts designed to deploy and configure PicFr
 
 ### Key Findings
 
-| Severity | Count | Description |
-|----------|-------|-------------|
-| Critical | 6 | Operations that can hang indefinitely or cause OOM |
-| High | 4 | Resource exhaustion risks and deprecated APIs |
-| Medium | 4 | Missing error handling and package conflicts |
+| Severity | Count | Description                                        |
+| -------- | ----- | -------------------------------------------------- |
+| Critical | 6     | Operations that can hang indefinitely or cause OOM |
+| High     | 4     | Resource exhaustion risks and deprecated APIs      |
+| Medium   | 4     | Missing error handling and package conflicts       |
 
 ### Impact on Raspberry Pi Zero 2W
 

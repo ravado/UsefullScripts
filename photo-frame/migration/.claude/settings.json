@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Edit(.claude/plans/*)"
+    ],
+    "deny": [
+      "Edit(backup.env)",
+      "Edit(**/*.env)"
+    ]
+  }
+}

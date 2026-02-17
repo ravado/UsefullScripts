@@ -11,8 +11,7 @@ echo -e "=== PICFRAME RESTORATION SCRIPT ===\n"
 
 SMB_CRED_FILE="$HOME/.smbcred"
 LOCAL_TMP="/tmp/picframe_restore"
-PICFRAME_BASE="$HOME/picframe"
-PICFRAME_DATA="$PICFRAME_BASE/picframe_data"
+PICFRAME_DATA="$HOME/picframe_data"
 
 mkdir -p "$LOCAL_TMP"
 
@@ -22,7 +21,6 @@ mkdir -p "$LOCAL_TMP"
 
 # Defaults
 VERBOSE=0          # --verbose : extra debug/summary output
-RESTORE_SERVICE=0  # --with-service : restore original systemd service from backup
 
 POSITIONAL=()
 
@@ -32,11 +30,6 @@ for arg in "$@"; do
     -v|--verbose)
       # Enable verbose output (extra logging and summary at the end)
       VERBOSE=1
-      ;;
-    --with-service)
-      # Restore the systemd picframe.service from the backup archive
-      # If not set, script will keep the service created by the installer
-      RESTORE_SERVICE=1
       ;;
     *)
       # Any non-flag is treated as a positional argument
@@ -52,13 +45,11 @@ set -- "${POSITIONAL[@]}"
 # 1: <prefix>        (home / batanovs / cherednychoks)
 # 2: <backup file>   (filename.tar.gz OR "latest")
 if [ $# -lt 2 ]; then
-    echo "❌ Usage: $0 [--verbose] [--with-service] <prefix> <backup_file.tar.gz|latest>"
+    echo "❌ Usage: $0 [--verbose] <prefix> <backup_file.tar.gz|latest>"
     echo ""
     echo "Examples:"
     echo "  $0 home latest"
     echo "  $0 --verbose home latest"
-    echo "  $0 home latest --with-service"
-    echo "  $0 --verbose --with-service home latest"
     exit 1
 fi
 
@@ -127,35 +118,31 @@ else
     echo "⚠️ No crontab.txt found in backup, skipping"
 fi
 
-echo "🔧 Patching restored crontab to use 'xset' instead of 'vcgencmd'..."
+echo "🔧 Stripping X11/vcgencmd display commands from crontab (not compatible with Wayland)..."
 
 TMP_CRON_PATCHED="$LOCAL_TMP/patched_crontab.txt"
 
-# Read and patch crontab
-crontab -l | \
-    sed 's/vcgencmd display_power 0/xset dpms force off/g' | \
-    sed 's/vcgencmd display_power 1/xset dpms force on/g' > "$TMP_CRON_PATCHED"
+# Strip lines that use vcgencmd or xset dpms (both are X11/firmware-only, not for Wayland)
+STRIPPED_COUNT=$(crontab -l | grep -cE 'vcgencmd|xset dpms' || true)
+crontab -l | grep -vE 'vcgencmd|xset dpms' > "$TMP_CRON_PATCHED"
 
-# Add DISPLAY=:0 at the top if not already present
-if ! grep -q "^DISPLAY=" "$TMP_CRON_PATCHED"; then
-    sed -i '1iDISPLAY=:0' "$TMP_CRON_PATCHED"
-    echo "✅ Added DISPLAY=:0 to crontab"
-else
-    echo "ℹ️ DISPLAY already set in crontab"
-fi
-
-# Reinstall patched crontab
+# Reinstall stripped crontab
 crontab "$TMP_CRON_PATCHED"
-echo "✅ Patched display commands in crontab"
-
-# Cleanup
 rm "$TMP_CRON_PATCHED"
+
+if [[ "$STRIPPED_COUNT" -gt 0 ]]; then
+    echo "⚠️  Removed $STRIPPED_COUNT display on/off cron job(s) that used vcgencmd/xset dpms."
+    echo "   These are not compatible with Wayland. Reconfigure display scheduling manually"
+    echo "   using wlr-randr or a Wayland-compatible method after setup is complete."
+else
+    echo "✅ No X11/vcgencmd display entries found in crontab"
+fi
 
 ###########################
 # Restore files
 ###########################
 echo "📂 Creating necessary directories..."
-mkdir -p ~/picframe ~/Documents/Scripts ~/.config ~/.config/picframe ~/Pictures
+mkdir -p ~/Documents/Scripts ~/.config ~/Pictures/PhotoFrame ~/Pictures/PhotoFrameDeleted
 
 echo "🖼️ Restoring PicFrame data..."
 if [ -d "$BACKUP_FULL/picframe_data" ]; then
@@ -166,38 +153,12 @@ else
     echo "⚠️ No picframe_data found in backup"
 fi
 
-echo "📑 Applying updated configuration for $PREFIX..."
+# NOTE: configuration.yaml is intentionally NOT restored here.
+# Apply it manually after restore: cp <backup>/picframe_data/config/configuration.yaml ~/picframe_data/config/
 
-CONFIG_REMOTE="configs/${PREFIX}_updated_config.yml"
-CONFIG_LOCAL="$LOCAL_TMP/${PREFIX}_updated_config.yml"
-
-# Fetch updated config from SMB share
-smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR/configs; lcd $LOCAL_TMP; get ${PREFIX}_updated_config.yml" || {
-    echo "⚠️ No updated config found on SMB for $PREFIX"
-}
-
-# Apply if downloaded
-if [ -f "$CONFIG_LOCAL" ]; then
-    mkdir -p "$PICFRAME_DATA/config"
-    cp -v "$CONFIG_LOCAL" "$PICFRAME_DATA/config/configuration.yaml"
-    echo "✅ Updated configuration.yaml applied from $CONFIG_LOCAL"
-else
-    echo "⚠️ Updated config not applied (file missing after fetch)"
-fi
-
-if [[ $RESTORE_SERVICE -eq 1 ]]; then
-    echo "⚙️ Restoring systemd service..."
-    if [ -f "$BACKUP_FULL/picframe.service" ]; then
-        sudo cp -v "$BACKUP_FULL/picframe.service" /etc/systemd/system/
-        sudo systemctl daemon-reload
-        sudo systemctl enable picframe.service
-        echo "✅ picframe.service restored from backup"
-    else
-        echo "⚠️ No picframe.service found in backup"
-    fi
-else
-    echo "ℹ️ Skipping service restore (use --with-service to enable)"
-fi
+# NOTE: picframe.service restore was removed.
+# The installer (1_install_picframe_developer_mode.sh) creates the correct Wayland/user service.
+# Do not restore the archived service — it was built for the old X11-based install.
 
 echo "🔑 Restoring SSH keys..."
 if [ -f "$BACKUP_FULL/ssh/id_ed25519" ]; then
@@ -246,8 +207,8 @@ fi
 # Create photo directories
 ###########################
 echo "📁 Ensuring photo directories exist..."
-mkdir -p ~/Pictures/PhotoFrame ~/Pictures/PhotoFrameOriginal ~/Pictures/PhotoFrameDeleted
-echo "✅ Photo directories created in ~/Pictures/"
+mkdir -p ~/Pictures/PhotoFrame ~/Pictures/PhotoFrameDeleted
+echo "✅ Photo directories ~/Pictures/PhotoFrame/ and ~/Pictures/PhotoFrameDeleted/ ready"
 ls -lah ~/Pictures
 
 ###########################
@@ -271,11 +232,10 @@ if [ $VERBOSE -eq 1 ]; then
     echo ""
     echo "📋 Verbose summary:"
     echo "   Backup used: $BACKUP_PATH"
-    echo "   Restored PicFrame config to: ~/.config/picframe/"
+    echo "   Restored PicFrame config to: ~/picframe_data/"
     echo "   Restored SSH keys to: ~/.ssh/"
     echo "   Restored WireGuard config to: /etc/wireguard/"
     echo "   Restored Samba config to: /etc/samba/"
-    echo "   Restored systemd service to: /etc/systemd/system/picframe.service"
 fi
 
 ###########################
