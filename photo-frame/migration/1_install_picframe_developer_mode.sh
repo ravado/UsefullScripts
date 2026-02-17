@@ -170,13 +170,19 @@ fi
 if [ "$LAST_COMPLETED_STEP" -lt 4 ]; then
     check_internet_connection
     log_message "Step 4: Installing additional packages..."
-    sudo apt-get install git libsdl2-dev xwayland labwc wlr-randr vlc ffmpeg -y
-    # Create Pictures and DeletedPictures directories
+    sudo apt-get install -y \
+        git \
+        libsdl2-dev libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
+        xwayland labwc wlr-randr \
+        vlc ffmpeg imagemagick \
+        wireguard rsync smbclient rclone \
+        inotify-tools libgpiod2 bc btop \
+        locales resolvconf \
+        mosquitto mosquitto-clients
+    log_message "✅ Packages installed."
+    # Create photo directories
     su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures/PhotoFrame /home/$INSTALL_USER/Pictures/PhotoFrameDeleted"
     log_message "Directories 'Pictures/PhotoFrame' and 'Pictures/PhotoFrameDeleted' created."
-    # Install Mosquitto for MQTT
-    sudo apt-get install -y mosquitto mosquitto-clients
-    log_message "Mosquitto Server installed."
     reboot_and_resume 4
 fi
 
