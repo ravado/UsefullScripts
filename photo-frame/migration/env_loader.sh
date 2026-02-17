@@ -32,6 +32,7 @@ REQUIRED_VARS=(
     REMOTE_HOST
     REMOTE_PATH
     LOCAL_PATH
+    PICFRAME_USER
 )
 
 missing_vars=()
