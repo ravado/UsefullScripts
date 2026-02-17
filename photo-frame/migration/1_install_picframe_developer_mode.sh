@@ -5,7 +5,7 @@
 # Based on community_installation.sh with modifications for development workflow
 
 # Configuration variables
-INSTALL_USER="pi"
+INSTALL_USER="ivan"
 REPO_URL="https://github.com/ravado/picframe.git"
 REPO_BRANCH="develop"
 VENV_PATH="/home/$INSTALL_USER/venv_picframe"
@@ -329,17 +329,24 @@ spawn su - $install_user -c "$venv_path/bin/picframe -i /home/$install_user/"
 expect {
     "picture directory*" { send "\r"; exp_continue }
     "Deleted picture directory*" { send "\r"; exp_continue }
+    "Enter locale*" { send "\r"; exp_continue }
     "Configuration file*" { send "\r"; exp_continue }
     eof
 }
+
+# Capture exit code
+catch wait result
+exit [lindex $result 3]
 EOF
     chmod +x "$INIT_SCRIPT"
 
     # Run initialization with expect for better control
+    INIT_EXIT_CODE=0
     if expect "$INIT_SCRIPT" "$VENV_PATH" "$INSTALL_USER" 2>&1 | tee -a "$LOG_FILE"; then
-        log_message "Picframe initialization command completed"
+        log_message "Picframe initialization command completed successfully"
     else
-        log_message "⚠️  WARNING: Picframe initialization returned non-zero exit code"
+        INIT_EXIT_CODE=$?
+        log_message "⚠️  WARNING: Picframe initialization returned exit code $INIT_EXIT_CODE"
     fi
 
     rm -f "$INIT_SCRIPT"
@@ -348,19 +355,44 @@ EOF
     CONFIG_FILE="$DATA_PATH/config/configuration.yaml"
     if [ ! -f "$CONFIG_FILE" ]; then
         log_message "❌ ERROR: Configuration file not created at $CONFIG_FILE"
-        log_message "   Attempting manual creation from template..."
+        log_message "   Attempting manual setup from template..."
 
-        # Create directories manually
+        # Create all required directories
         su - $INSTALL_USER -c "mkdir -p $DATA_PATH/config"
+        su - $INSTALL_USER -c "mkdir -p $DATA_PATH/data"
+        su - $INSTALL_USER -c "mkdir -p $DATA_PATH/html"
         su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures"
         su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/DeletedPictures"
+        log_message "✅ Created directory structure"
 
-        # Try to copy default config from picframe package
-        if [ -f "$REPO_PATH/src/picframe/data/configuration.yaml" ]; then
-            su - $INSTALL_USER -c "cp $REPO_PATH/src/picframe/data/configuration.yaml $CONFIG_FILE"
-            log_message "✅ Copied default configuration from package"
+        # Copy data directory (fonts, shaders, etc.)
+        if [ -d "$REPO_PATH/src/picframe/data" ]; then
+            su - $INSTALL_USER -c "cp -r $REPO_PATH/src/picframe/data/* $DATA_PATH/data/"
+            log_message "✅ Copied data directory (fonts, shaders)"
         else
-            log_message "❌ FATAL: Cannot find default configuration template"
+            log_message "⚠️  WARNING: Data directory not found at $REPO_PATH/src/picframe/data"
+        fi
+
+        # Copy html directory (web UI)
+        if [ -d "$REPO_PATH/src/picframe/html" ]; then
+            su - $INSTALL_USER -c "cp -r $REPO_PATH/src/picframe/html/* $DATA_PATH/html/"
+            log_message "✅ Copied html directory (web UI)"
+        else
+            log_message "⚠️  WARNING: HTML directory not found at $REPO_PATH/src/picframe/html"
+        fi
+
+        # Copy configuration template
+        if [ -f "$REPO_PATH/src/picframe/config/configuration_example.yaml" ]; then
+            su - $INSTALL_USER -c "cp $REPO_PATH/src/picframe/config/configuration_example.yaml $CONFIG_FILE"
+            log_message "✅ Copied configuration template"
+
+            # Update paths in configuration to match installation
+            su - $INSTALL_USER -c "sed -i 's|~/Pictures|/home/$INSTALL_USER/Pictures|g' $CONFIG_FILE"
+            su - $INSTALL_USER -c "sed -i 's|~/DeletedPictures|/home/$INSTALL_USER/DeletedPictures|g' $CONFIG_FILE"
+            su - $INSTALL_USER -c "sed -i 's|~/picframe_data|$DATA_PATH|g' $CONFIG_FILE"
+            log_message "✅ Updated configuration paths for user $INSTALL_USER"
+        else
+            log_message "❌ FATAL: Cannot find configuration template at $REPO_PATH/src/picframe/config/configuration_example.yaml"
             log_message "   Installation cannot continue - picframe will not run without config"
             exit 1
         fi
@@ -368,14 +400,32 @@ EOF
         log_message "✅ Configuration file verified at $CONFIG_FILE"
     fi
 
-    # Verify all expected directories exist
-    for dir in "$DATA_PATH/config" "/home/$INSTALL_USER/Pictures" "/home/$INSTALL_USER/DeletedPictures"; do
-        if [ ! -d "$dir" ]; then
-            log_message "⚠️  WARNING: Expected directory missing: $dir (creating now)"
-            su - $INSTALL_USER -c "mkdir -p $dir"
+    # Verify all required paths exist
+    log_message "Verifying installation integrity..."
+    REQUIRED_PATHS=(
+        "$CONFIG_FILE"
+        "$DATA_PATH/config"
+        "$DATA_PATH/data"
+        "$DATA_PATH/html"
+        "/home/$INSTALL_USER/Pictures"
+        "/home/$INSTALL_USER/DeletedPictures"
+    )
+
+    VERIFICATION_FAILED=0
+    for path in "${REQUIRED_PATHS[@]}"; do
+        if [ ! -e "$path" ]; then
+            log_message "❌ ERROR: Required path missing: $path"
+            VERIFICATION_FAILED=1
         fi
     done
 
+    if [ $VERIFICATION_FAILED -eq 1 ]; then
+        log_message "❌ FATAL: Installation verification failed - required paths missing"
+        log_message "   Manual intervention required"
+        exit 1
+    fi
+
+    log_message "✅ All required paths verified"
     log_message "✅ Step 5 completed successfully"
     update_progress 5
 fi
