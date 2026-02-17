@@ -7,7 +7,7 @@ REPO_URL="https://raw.githubusercontent.com/ravado/usefull-scripts/main/photo-fr
 SCRIPT_DIR="$(pwd)"
 
 # Files to download
-FILES=(env_loader.sh 0_backup_setup.sh 1_install_picframe.sh 2_restore_samba.sh 3_restore_picframe_backup.sh 4_sync_photos.sh 5_configure_photo_sync.sh backup.env.example)
+FILES=(env_loader.sh 0_backup_setup.sh 1_install_picframe_developer_mode.sh 2_restore_samba.sh 3_restore_picframe_backup.sh 5_configure_photo_sync.sh backup.env.example)
 
 echo "📥 Downloading required scripts..."
 for file in "${FILES[@]}"; do
@@ -29,14 +29,13 @@ echo ""
 echo "✅ Installation complete."
 echo ""
 echo "👉 Next steps:"
-echo "1️⃣  Edit the 'backup.env' file to match your SMB and PicFrame configuration."
-echo "2️⃣  Run the scripts manually in the following order as needed:"
-echo "    ./0_backup_setup.sh <prefix>"
-echo "    ./1_install_picframe.sh"
+echo "1️⃣  Edit 'backup.env' to match your SMB credentials and PicFrame user."
+echo "2️⃣  Run the scripts in order:"
+echo "    ./1_install_picframe_developer_mode.sh"
 echo "    ./2_restore_samba.sh"
 echo "    ./3_restore_picframe_backup.sh <prefix> <latest|filename>"
-echo "    ./4_sync_photos.sh"
+echo "    ./5_configure_photo_sync.sh <prefix>"
 echo ""
-echo "ℹ️ Example:"
-echo "    ./0_backup_setup.sh home"
+echo "ℹ️ Example (home frame):"
 echo "    ./3_restore_picframe_backup.sh home latest"
+echo "    ./5_configure_photo_sync.sh home"
