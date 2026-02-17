@@ -21,7 +21,6 @@ mkdir -p "$LOCAL_TMP"
 
 # Defaults
 VERBOSE=0          # --verbose : extra debug/summary output
-RESTORE_SERVICE=0  # --with-service : restore original systemd service from backup
 
 POSITIONAL=()
 
@@ -31,11 +30,6 @@ for arg in "$@"; do
     -v|--verbose)
       # Enable verbose output (extra logging and summary at the end)
       VERBOSE=1
-      ;;
-    --with-service)
-      # Restore the systemd picframe.service from the backup archive
-      # If not set, script will keep the service created by the installer
-      RESTORE_SERVICE=1
       ;;
     *)
       # Any non-flag is treated as a positional argument
@@ -51,13 +45,11 @@ set -- "${POSITIONAL[@]}"
 # 1: <prefix>        (home / batanovs / cherednychoks)
 # 2: <backup file>   (filename.tar.gz OR "latest")
 if [ $# -lt 2 ]; then
-    echo "❌ Usage: $0 [--verbose] [--with-service] <prefix> <backup_file.tar.gz|latest>"
+    echo "❌ Usage: $0 [--verbose] <prefix> <backup_file.tar.gz|latest>"
     echo ""
     echo "Examples:"
     echo "  $0 home latest"
     echo "  $0 --verbose home latest"
-    echo "  $0 home latest --with-service"
-    echo "  $0 --verbose --with-service home latest"
     exit 1
 fi
 
@@ -161,43 +153,12 @@ else
     echo "⚠️ No picframe_data found in backup"
 fi
 
-echo "📑 Applying updated configuration for $PREFIX..."
+# NOTE: configuration.yaml is intentionally NOT restored here.
+# Apply it manually after restore: cp <backup>/picframe_data/config/configuration.yaml ~/picframe_data/config/
 
-CONFIG_REMOTE="configs/${PREFIX}_updated_config.yml"
-CONFIG_LOCAL="$LOCAL_TMP/${PREFIX}_updated_config.yml"
-
-# Fetch updated config from SMB share
-smbclient "$SMB_BACKUPS_PATH" -A "$SMB_CRED_FILE" -c "cd $SMB_BACKUPS_SUBDIR/configs; lcd $LOCAL_TMP; get ${PREFIX}_updated_config.yml" || {
-    echo "⚠️ No updated config found on SMB for $PREFIX"
-}
-
-# Apply if downloaded
-if [ -f "$CONFIG_LOCAL" ]; then
-    mkdir -p "$PICFRAME_DATA/config"
-    cp -v "$CONFIG_LOCAL" "$PICFRAME_DATA/config/configuration.yaml"
-    echo "✅ Updated configuration.yaml applied from $CONFIG_LOCAL"
-else
-    echo "⚠️ Updated config not applied (file missing after fetch)"
-fi
-
-if [[ $RESTORE_SERVICE -eq 1 ]]; then
-    echo "⚙️ Restoring systemd service..."
-    if [ -f "$BACKUP_FULL/picframe.service" ]; then
-        echo "⚠️  WARNING: The archived picframe.service was created for the old X11-based install."
-        echo "   It references system Python, xinit/X11 display, and runs as a system service."
-        echo "   The community install uses a user-level Wayland service. Review and edit the"
-        echo "   service file at ~/.config/systemd/user/picframe.service before enabling it."
-        mkdir -p ~/.config/systemd/user
-        cp -v "$BACKUP_FULL/picframe.service" ~/.config/systemd/user/picframe.service
-        systemctl --user daemon-reload
-        systemctl --user enable picframe
-        echo "✅ picframe.service restored to ~/.config/systemd/user/picframe.service"
-    else
-        echo "⚠️ No picframe.service found in backup"
-    fi
-else
-    echo "ℹ️ Skipping service restore (use --with-service to enable)"
-fi
+# NOTE: picframe.service restore was removed.
+# The installer (1_install_picframe_developer_mode.sh) creates the correct Wayland/user service.
+# Do not restore the archived service — it was built for the old X11-based install.
 
 echo "🔑 Restoring SSH keys..."
 if [ -f "$BACKUP_FULL/ssh/id_ed25519" ]; then
@@ -275,7 +236,6 @@ if [ $VERBOSE -eq 1 ]; then
     echo "   Restored SSH keys to: ~/.ssh/"
     echo "   Restored WireGuard config to: /etc/wireguard/"
     echo "   Restored Samba config to: /etc/samba/"
-    echo "   Restored systemd service to: ~/.config/systemd/user/picframe.service"
 fi
 
 ###########################
