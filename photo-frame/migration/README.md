@@ -10,8 +10,9 @@ It also includes automatic SMB backup integration and environment-based configur
 ### `0_backup_setup.sh`
 - Creates a timestamped backup and places an archive on the SMB share.
 
-### `1_install_picframe.sh`
-- Installs PicFrame and its dependencies.
+### `1_install_picframe_developer_mode.sh`
+- Installs PicFrame (developer fork) and all dependencies into a Python venv.
+- Sets up Wayland/labwc display stack, systemd user service, sudoers rules.
 
 ### `2_restore_samba.sh`
 - Restores SMB credentials for both server and client.
@@ -19,13 +20,12 @@ It also includes automatic SMB backup integration and environment-based configur
 
 ### `3_restore_picframe_backup.sh`
 - Restores a backup created by `0_backup_setup.sh`.
-
-### `4_sync_photos.sh`
-- *(Optional)* Synchronizes photos between two PicFrame devices using `rsync`.
-- Can be used to migrate photos between old and new setups.
+- Restores SSH keys, WireGuard config, git config, crontab, and picframe_data.
+- Does **not** restore `configuration.yaml` or `picframe.service` — apply those manually.
 
 ### `5_configure_photo_sync.sh`
-- *(Optional)* Configures the automatic sync and resize photos from remote location using `rclone`.
+- *(Optional)* Configures automatic photo sync from NAS via `rclone` (SMB remote).
+- Creates a systemd template unit `photo-sync@<instance>` and a daily cron job.
 
 ---
 
@@ -61,11 +61,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ravado/usefull-scripts/main/
 
 **Restore by prefix**:
 ```bash
-./3_restore.sh home latest
-./3_restore.sh batanovs latest
+./3_restore_picframe_backup.sh home latest
+./3_restore_picframe_backup.sh batanovs latest
 ```
 
 **Restore by exact filename**:
 ```bash
-./3_restore.sh home picframe_home_setup_backup_20250802_104025.tar.gz
+./3_restore_picframe_backup.sh home picframe_home_setup_backup_20250802_104025.tar.gz
 ```
