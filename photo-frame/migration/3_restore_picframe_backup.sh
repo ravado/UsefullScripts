@@ -153,12 +153,23 @@ else
     echo "⚠️ No picframe_data found in backup"
 fi
 
-# NOTE: configuration.yaml is intentionally NOT restored here.
-# Apply it manually after restore: cp <backup>/picframe_data/config/configuration.yaml ~/picframe_data/config/
-
-# NOTE: picframe.service restore was removed.
-# The installer (1_install_picframe_developer_mode.sh) creates the correct Wayland/user service.
-# Do not restore the archived service — it was built for the old X11-based install.
+echo ""
+echo "⚠️  ─────────────────────────────────────────────────────────────────"
+echo "⚠️  MANUAL STEP REQUIRED: configuration.yaml was NOT applied."
+echo "⚠️  The backed-up config references old X11 paths and the old user."
+echo "⚠️  Review and adapt it before use:"
+echo ""
+echo "     diff $BACKUP_FULL/picframe_data/config/configuration.yaml \\"
+echo "          ~/picframe_data/config/configuration.yaml"
+echo ""
+echo "     # Then copy when ready:"
+echo "     cp $BACKUP_FULL/picframe_data/config/configuration.yaml \\"
+echo "        ~/picframe_data/config/configuration.yaml"
+echo ""
+echo "⚠️  picframe.service was also NOT restored — the installer creates"
+echo "⚠️  the correct Wayland/user service. The archived one is X11-only."
+echo "⚠️  ─────────────────────────────────────────────────────────────────"
+echo ""
 
 echo "🔑 Restoring SSH keys..."
 if [ -f "$BACKUP_FULL/ssh/id_ed25519" ]; then
@@ -246,6 +257,8 @@ rm -rf "$BACKUP_FULL"
 
 echo -e "\n=== ✅ RESTORATION COMPLETE ===\n"
 echo "🚀 Next steps:"
-echo "1️⃣ Configure photo sync service: ./5_configure_photo_sync.sh <prefix>"
-echo "2️⃣ 🔒 Enable WireGuard: sudo systemctl enable wg-quick@wg0"
-echo "3️⃣ 🔄 Restart the Pi: sudo reboot now"
+echo "1️⃣  ⚠️  Manually review and apply configuration.yaml (paths + user changed from X11 install)"
+echo "      diff <backup>/picframe_data/config/configuration.yaml ~/picframe_data/config/configuration.yaml"
+echo "2️⃣  Configure photo sync service: ./5_configure_photo_sync.sh <prefix>"
+echo "3️⃣  🔒 Enable WireGuard: sudo systemctl enable wg-quick@wg0"
+echo "4️⃣  🔄 Restart the Pi: sudo reboot now"
