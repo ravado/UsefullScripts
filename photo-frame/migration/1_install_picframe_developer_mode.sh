@@ -3,6 +3,8 @@
 # PicFrame Developer Mode Installation Script
 # Installs picframe fork (https://github.com/ravado/picframe) in developer mode
 # Based on community_installation.sh with modifications for development workflow
+#
+# Prerequisites: Run 1_install_packages.sh before this script
 
 # Configuration variables
 INSTALL_USER="ivan"
@@ -156,40 +158,14 @@ if [ "$LAST_COMPLETED_STEP" -lt 2 ]; then
     reboot_and_resume 2
 fi
 
-# Step 3: Install Samba — configuration is handled by 2_restore_samba.sh
-# Run that script separately after this installation completes.
+# Step 3: Installing picframe in developer mode
 if [ "$LAST_COMPLETED_STEP" -lt 3 ]; then
     check_internet_connection
-    log_message "Step 3: Installing Samba..."
-    sudo apt-get install -y samba
-    update_progress 3
-    log_message "✅ Samba installed. Run 2_restore_samba.sh to configure it."
-fi
+    log_message "Step 3: Installing picframe in developer mode..."
 
-# Step 4: Install additional packages
-if [ "$LAST_COMPLETED_STEP" -lt 4 ]; then
-    check_internet_connection
-    log_message "Step 4: Installing additional packages..."
-    sudo apt-get install -y \
-        git \
-        libsdl2-dev libsdl2-image-2.0-0 libsdl2-mixer-2.0-0 libsdl2-ttf-2.0-0 \
-        xwayland labwc wlr-randr \
-        vlc ffmpeg imagemagick \
-        wireguard rsync smbclient rclone \
-        inotify-tools libgpiod2 bc btop \
-        locales resolvconf \
-        mosquitto mosquitto-clients
-    log_message "✅ Packages installed."
     # Create photo directories
     su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/Pictures/PhotoFrame /home/$INSTALL_USER/Pictures/PhotoFrameDeleted"
     log_message "Directories 'Pictures/PhotoFrame' and 'Pictures/PhotoFrameDeleted' created."
-    reboot_and_resume 4
-fi
-
-# Step 5: Installing picframe in developer mode
-if [ "$LAST_COMPLETED_STEP" -lt 5 ]; then
-    check_internet_connection
-    log_message "Step 5: Installing picframe in developer mode..."
 
     # Clone the repository
     log_message "Cloning picframe repository from $REPO_URL..."
@@ -379,13 +355,13 @@ EOF
     fi
 
     log_message "✅ All required paths verified"
-    log_message "✅ Step 5 completed successfully"
-    update_progress 5
+    log_message "✅ Step 3 completed successfully"
+    update_progress 3
 fi
 
-# Step 6: Configure Mosquitto for anonymous access and open listener
-if [ "$LAST_COMPLETED_STEP" -lt 6 ]; then
-    log_message "Step 6: Configuring Mosquitto for anonymous access and listener..."
+# Step 4: Configure Mosquitto for anonymous access and open listener
+if [ "$LAST_COMPLETED_STEP" -lt 4 ]; then
+    log_message "Step 4: Configuring Mosquitto for anonymous access and listener..."
 
     # Edit the Mosquitto configuration file
     log_message "Editing /etc/mosquitto/mosquitto.conf to allow anonymous access and open listener..."
@@ -397,13 +373,13 @@ if [ "$LAST_COMPLETED_STEP" -lt 6 ]; then
     log_message "Mosquitto configuration updated and service restarted."
 
     # Mark step as completed
-    update_progress 6
+    update_progress 4
     log_message "Mosquitto configuration completed."
 fi
 
-# Step 7: Create autostart script for Picframe
-if [ "$LAST_COMPLETED_STEP" -lt 7 ]; then
-    log_message "Step 7: Creating autostart script for Picframe as user '$INSTALL_USER'..."
+# Step 5: Create autostart script for Picframe
+if [ "$LAST_COMPLETED_STEP" -lt 5 ]; then
+    log_message "Step 5: Creating autostart script for Picframe as user '$INSTALL_USER'..."
 
     # Create autostart script for Picframe
     AUTOSTART_SCRIPT="/home/$INSTALL_USER/start_picframe.sh"
@@ -418,13 +394,13 @@ EOL
     log_message "Autostart script created and made executable: $AUTOSTART_SCRIPT."
 
     # Mark step as completed
-    update_progress 7
+    update_progress 5
     log_message "Directory setup and autostart script creation completed."
 fi
 
-# Step 8: Configure autostart for Picframe using labwc and set up systemd service
-if [ "$LAST_COMPLETED_STEP" -lt 8 ]; then
-    log_message "Step 8: Configuring autostart for Picframe with labwc and setting up systemd service as user '$INSTALL_USER'..."
+# Step 6: Configure autostart for Picframe using labwc and set up systemd service
+if [ "$LAST_COMPLETED_STEP" -lt 6 ]; then
+    log_message "Step 6: Configuring autostart for Picframe with labwc and setting up systemd service as user '$INSTALL_USER'..."
 
     # Create labwc autostart directory and configuration file
     su - $INSTALL_USER -c "mkdir -p /home/$INSTALL_USER/.config/labwc"
@@ -465,12 +441,12 @@ EOL
 
     # Mark step as completed and reboot to apply changes
     log_message "Autostart configuration for Picframe completed. Rebooting to apply changes."
-    reboot_and_resume 8
+    reboot_and_resume 6
 fi
 
-# Step 9: Post-installation verification
-if [ "$LAST_COMPLETED_STEP" -ge 8 ] && [ "$LAST_COMPLETED_STEP" -lt 9 ]; then
-    log_message "Step 9: Running post-installation verification..."
+# Step 7: Post-installation verification
+if [ "$LAST_COMPLETED_STEP" -ge 6 ] && [ "$LAST_COMPLETED_STEP" -lt 7 ]; then
+    log_message "Step 7: Running post-installation verification..."
 
     # Verify picframe binary exists and is executable
     if [ ! -x "$VENV_PATH/bin/picframe" ]; then
@@ -559,11 +535,11 @@ if [ "$LAST_COMPLETED_STEP" -ge 8 ] && [ "$LAST_COMPLETED_STEP" -lt 9 ]; then
     log_message "4. Check status: systemctl --user status picframe"
     log_message ""
 
-    update_progress 9
+    update_progress 7
 fi
 
 # Final step: Remove the systemd service only if all steps are completed
-if [ "$LAST_COMPLETED_STEP" -ge 9 ]; then
+if [ "$LAST_COMPLETED_STEP" -ge 7 ]; then
     remove_systemd_service
     log_message "Installation complete! System will reboot in 10 seconds..."
     sleep 10
